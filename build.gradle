@@ -51,7 +51,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 
     testCompileOnly 'org.projectlombok:lombok'
-    testRuntimeOnly 'com.h2database:h2'
+    testRuntimeOnly 'com.h2database:h2:2.3.232'
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 

@@ -22,7 +22,7 @@ public class BaseEntity {
     @Column(name = "modified_at", nullable = true, updatable = true)
     private LocalDateTime modifiedAt;
 
-    @Column(name = "is_deleted", length = 1, nullable = false)
+    @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
 
     public void softDelete() {
