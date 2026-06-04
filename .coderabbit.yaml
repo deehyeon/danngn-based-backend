@@ -1,0 +1,298 @@
+language: "ko-KR"
+early_access: true
+enable_free_tier: true
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  auto_title_placeholder: "@coderabbitai"
+
+  sequence_diagrams: true
+  changed_files_summary: true
+  collapse_walkthrough: false
+
+  poem: false
+  in_progress_fortune: false
+
+  suggested_labels: true
+  auto_apply_labels: true
+
+  # 제외 파일 (노이즈 제거)
+  path_filters:
+    - "!**/build/**"
+    - "!**/gradle/**"
+    - "!**/.claude/**"
+    - "!**/HELP.md"
+    - "!**/README.md"
+    - "!src/test/**" # 테스트 코드 리뷰 생략 (필요 시 이 줄 제거)
+
+  path_instructions:
+
+    # ============================================================
+    #  1. Domain Layer — 순수 비즈니스 로직
+    # ============================================================
+    - path: "**/domain/**/*.java"
+      instructions: >
+        **[Hexagonal Architecture - Domain Layer]**
+
+        Domain 계층은 외부 의존성이 없는 순수한 비즈니스 로직이어야 합니다.
+
+        **필수 확인 사항:**
+
+        1. **의존성 방향**: Domain에서 Application·Adapter 계층을 import하면 심각한 아키텍처 위반입니다.
+           "[Hexagonal - Domain Violation] Domain 계층은 외부 계층에 의존해서는 안 됩니다." 경고를 남겨주세요.
+
+        2. **외부 라이브러리**: `@Service`, `@Component`, `@Autowired`, Jackson 등 Spring/외부 프레임워크 어노테이션 사용 시 경고
+           (JPA `@Entity`, `@Column` 등 순수 매핑 어노테이션은 허용).
+
+        3. **기본 클래스 상속**:
+           - ID + Audit 필드 필요 → `extends AbstractEntity` 필수
+           - Audit 필드만 필요 → `extends BaseEntity` 사용
+           어느 쪽도 상속하지 않으면 누락이므로 지적해주세요.
+
+        4. **Setter 금지**: 상태 변경은 반드시 `updateXxx()`, `changeXxx()` 같은 의미 있는 비즈니스 메서드로만 수행.
+
+        5. **생성자 접근 제한**: 기본 생성자는 `@NoArgsConstructor(access = AccessLevel.PROTECTED)`,
+           외부에서 인스턴스 생성은 정적 팩토리 메서드(`create(...)`)를 통해서만 허용.
+
+        6. **소프트 삭제**: `isDeleted = true` 방식만 사용. `repository.delete()` 호출은 금지이므로 발견 시 "[DB Convention]" 경고.
+
+        7. **ID 타입 강제**: PK(`@Id`) 및 FK성 필드는 반드시 `Long` (Wrapper). `int`·`Integer` 사용 시 "[DB Convention] Long 타입으로 변경하세요." 경고.
+
+        8. **FK 제약조건**: 물리 FK 제약(`@ForeignKey`, `@JoinColumn(foreignKey = ...)` 등)은 사용하지 않습니다. 제안하지 마세요.
+
+        **경고 형식**: "[Hexagonal - Domain Violation]" 또는 "[DB Convention]"
+
+    # ============================================================
+    #  2. Application Layer — 유스케이스 / 서비스
+    # ============================================================
+    - path: "**/application/**/*.java"
+      instructions: >
+        **[Hexagonal Architecture - Application Layer]**
+
+        Application 계층은 비즈니스 유스케이스를 조율합니다.
+
+        **필수 확인 사항:**
+
+        1. **의존성 방향**: Application은 Domain에만 의존 가능. Adapter 구현체를 직접 import하면 위반.
+           Port(인터페이스)를 통해 Adapter와 통신해야 합니다.
+
+        2. **Port 활용 구조**:
+           - `provided/` — Application이 외부(Controller 등)에 제공하는 포트 인터페이스 (예: `AuthWriter`, `MemberFinder`)
+           - `required/` — Application이 외부(Repository 등)에 요구하는 포트 인터페이스 (예: `AuthRepository`, `MemberRepository`)
+           구현체(`*Impl`, `*Adapter`)를 직접 의존하면 안 됩니다.
+
+        3. **서비스 네이밍**: 쓰기 서비스는 `*WriterService`, 읽기·조회 서비스는 `*ReaderService` 또는 `*FinderService`.
+
+        4. **트랜잭션**: `@Transactional` 범위가 적절한지, 읽기 전용 메서드에 `@Transactional(readOnly = true)` 사용 여부 확인.
+
+        5. **DTO 반환**: Domain Entity를 Controller까지 직접 반환하지 않고 `dto/` 패키지의 DTO로 변환 후 반환.
+
+        6. **비즈니스 로직 위치**: 복잡한 비즈니스 규칙이 Application에 있다면 Domain Entity 메서드로 이동 제안.
+
+        7. **Redis 접근**: Redis는 반드시 `MemoryMap` 인터페이스(`setValue`, `getValue`, `deleteValue`, `checkExistsValue`)를 통해서만 접근.
+           `RedisTemplate`을 직접 주입하면 "[Hexagonal - Application Violation]" 경고.
+
+        8. **Refresh Token**: Redis에 저장 시 키 접두사는 반드시 `"RT:" + memberId`. 다른 접두사 사용 시 경고.
+
+        **경고 형식**: "[Hexagonal - Application Violation]"
+
+    # ============================================================
+    #  3. Adapter Layer — 인프라 / 입출력 어댑터
+    # ============================================================
+    - path: "**/adapter/**/*.java"
+      instructions: >
+        **[Hexagonal Architecture - Adapter Layer]**
+
+        Adapter 계층은 외부 세계(HTTP, DB, Redis, OAuth 등)와의 연결을 담당합니다.
+
+        **필수 확인 사항:**
+
+        1. **의존성 방향**: Adapter는 Domain·Application에 의존 가능. 다른 Adapter를 직접 의존하면 위반.
+
+        2. **Controller (Driving Adapter)**:
+           - `*Api.java`: Swagger(`@Operation`, `@Schema`) 어노테이션 전용 인터페이스. 비즈니스 로직 포함 금지.
+           - `*Controller.java`: `*Api` 인터페이스를 구현하며 Application Service를 호출하는 얇은 계층.
+           비즈니스 로직이 Controller에 있으면 안 됩니다.
+
+        3. **Repository Adapter (Driven Adapter)**:
+           - `required/` 패키지의 Port 인터페이스를 구현하는지 확인.
+           - 소프트 삭제 쿼리에 `isDeleted = false` 조건이 포함되어 있는지 확인.
+
+        4. **Security Adapter** (`adapter/security/`):
+           - `JwtAuthenticationFilter`, `JwtTokenProvider` 등은 이 패키지에 위치. JaCoCo 커버리지 제외 대상.
+           - 새 공개 경로 추가 시 `SecurityConfig.filterChain()`의 `requestMatchers`와
+             `JwtAuthenticationFilter.EXCLUDE_URLS` 리스트 **모두** 업데이트 필요.
+
+        **경고 형식**: "[Hexagonal - Adapter Violation]"
+
+    # ============================================================
+    #  4. Port 인터페이스 — provided / required
+    # ============================================================
+    - path: "**/provided/**/*.java"
+      instructions: >
+        **[Hexagonal Architecture - Provided Port]**
+
+        `provided/` 패키지는 Application이 외부(주로 Controller)에 제공하는 포트 인터페이스입니다.
+
+        **확인 사항:**
+        - 인터페이스 이름은 역할 중심으로 작성 (예: `AuthWriter`, `MemberFinder`).
+        - 구현체(`*Service`)와 인터페이스의 메서드 시그니처가 일치하는지 확인.
+        - 인터페이스에 비즈니스 로직이 없어야 합니다 (메서드 선언만).
+
+    - path: "**/required/**/*.java"
+      instructions: >
+        **[Hexagonal Architecture - Required Port (Repository)]**
+
+        `required/` 패키지는 Application이 외부(JPA Repository 구현체 등)에 요구하는 포트 인터페이스입니다.
+
+        **확인 사항:**
+        1. **소프트 삭제 쿼리**: 조회 쿼리에는 반드시 `AND m.isDeleted = false` 조건 포함.
+           `@Query` 없이 메서드명 기반 쿼리라면 `findByIdAndIsDeletedFalse(...)` 형태 사용 권장.
+
+        2. **N+1 예방**: `@OneToMany`, `@ManyToOne` 연관 관계 조회 시 Fetch Join 또는 `@EntityGraph` 사용 여부 확인.
+
+        3. **물리 삭제 금지**: `deleteById()`, `delete()` 메서드 선언이 있으면 "[DB Convention] 소프트 삭제를 사용하세요." 경고.
+
+        4. **쿼리 최적화**: `@Query`에서 필요한 컬럼만 SELECT하는지, DTO 프로젝션 활용 여부 확인.
+
+    # ============================================================
+    #  5. REST API 설계 원칙 (Controller / Api 인터페이스)
+    # ============================================================
+    - path: "**/*Controller.java"
+      instructions: &rest_api_instructions >
+        **[REST API Design]**
+
+        ### HTTP 메서드 & URI 규칙
+        - **kebab-case** URI 사용 (예: `/v1/user-profiles`)
+        - 리소스는 **복수형 명사** (예: `/v1/members`, `/v1/posts`)
+        - URI에 동사 포함 금지 (복잡한 컨트롤러 액션은 예외 허용)
+        - 쿼리 파라미터·바디 필드는 **camelCase**
+        - 모든 경로는 `/v1/` 접두사 필수
+
+        ### 응답 형식
+        - **Auth 도메인** (`auth/adapter/`): 쿠키(Access/Refresh Token) 설정이 필요하므로 `ResponseEntity<ApiResponse<T>>` 사용.
+        - **그 외 모든 도메인**: `ResponseEntity` 없이 `ApiResponse<T>`를 직접 반환.
+          - 성공(데이터 없음): `ApiResponse.success()`
+          - 성공(데이터 있음): `ApiResponse.success(data)`
+        - Auth 외 도메인에서 `ResponseEntity`를 반환하면 "[REST API Convention] Auth 외 도메인은 ApiResponse<T>를 직접 반환해야 합니다." 경고.
+
+        ### 인증 관련
+        - 인증 필요 엔드포인트: `@AuthenticationPrincipal AuthDetails authDetails` 사용
+        - 리소스 소유자 검증 누락 시 "[Security] 리소스 소유자 검증이 필요합니다." 경고
+
+        **경고 형식**: "[REST API Convention]"
+
+    - path: "**/*Api.java"
+      instructions: *rest_api_instructions
+
+    # ============================================================
+    #  6. 예외 처리
+    # ============================================================
+    - path: "**/exception/**/*.java"
+      instructions: >
+        **[Exception Handling]**
+
+        이 프로젝트의 예외 계층:
+        `RuntimeException` → `GlobalException(ErrorType)` → `AuthException` → `{Domain}Exception`
+
+        **확인 사항:**
+        1. **ErrorType 구현**: `*ErrorType` enum은 반드시 `ErrorType` 인터페이스 구현, `HttpStatus` + 한국어 메시지 포함.
+        2. **Exception 클래스**: `{Domain}Exception`은 `GlobalException`을 상속하고 `ErrorType`을 인자로 받는 생성자 필수.
+        3. **에러 코드 메시지**: 에러 메시지는 한국어로 작성 (사용자에게 노출됨).
+        4. **스택 트레이스 노출 금지**: 응답 바디에 스택 트레이스가 포함되지 않도록 `ApiControllerAdvice`에서 처리.
+
+    # ============================================================
+    #  7. 코드 스타일 — 첫 줄 띄어쓰기 금지
+    # ============================================================
+    - path: "**/*.java"
+      instructions: >
+        **[Code Style]**
+
+        **클래스·메서드의 첫 줄은 빈 줄 없이 바로 시작해야 합니다.**
+
+        잘못된 예:
+        ```java
+        public class Member {
+
+            private Long id;
+        }
+        public void create() {
+
+            Member m = ...;
+        }
+        ```
+
+        올바른 예:
+        ```java
+        public class Member {
+            private Long id;
+        }
+        public void create() {
+            Member m = ...;
+        }
+        ```
+
+        클래스·메서드 선언 직후 빈 줄이 있으면 "[Code Style] 클래스/메서드의 첫 줄은 띄지 않고 바로 시작해야 합니다." 지적해주세요.
+
+        **날짜/시간 처리:**
+        `LocalDateTime` 파라미터·반환 시 프론트엔드와의 시차(+9시간) 문제 가능성 점검.
+        UTC 처리가 명확하지 않으면 `OffsetDateTime` 또는 `ZonedDateTime` 사용을 권장해주세요.
+
+chat:
+  auto_reply: true
+
+code_generation:
+  docstrings:
+    path_instructions:
+      - path: "**/*Api.java"
+        instructions: "Swagger 어노테이션(@Operation, @ApiResponse, @Schema)에 들어갈 설명을 포함하여 JavaDoc을 작성해주세요."
+      - path: "**/application/**/*WriterService.java"
+        instructions: "비즈니스 로직의 예외 케이스와 @Transactional 범위를 명시하는 JavaDoc을 작성해주세요."
+      - path: "**/application/**/*ReaderService.java"
+        instructions: "조회 조건(isDeleted = false 포함 여부, 페이징 여부)을 명시하는 JavaDoc을 작성해주세요."
+      - path: "**/application/**/*FinderService.java"
+        instructions: "조회 조건(isDeleted = false 포함 여부, 페이징 여부)을 명시하는 JavaDoc을 작성해주세요."
+
+  unit_tests:
+    path_instructions:
+      - path: "**/application/**/*.java"
+        instructions: >
+          JUnit 5 + Mockito를 사용하고, 테스트 클래스에는 `@ExtendWith(MockitoExtension.class)`를 붙여주세요.
+          메서드 이름은 한국어로 작성하고 Given/When/Then 구조를 따릅니다.
+          예: `void 존재하지_않는_회원_조회시_예외_발생()`.
+          JaCoCo 커버리지 기준(라인·브랜치 30%)을 충족하도록 엣지 케이스를 포함해주세요.
+          커버리지 제외 대상(dto, exception, config, security, webapi)은 테스트 불필요합니다.
+
+pre_merge_checks:
+  title:
+    mode: "warning"
+  description:
+    mode: "warning"
+  docstrings:
+    mode: "warning"
+    threshold: 50
+  issue_assessment:
+    mode: "warning"
+
+tools:
+  gitleaks:
+    enabled: true
+  osv-scanner:
+    enabled: true
+  pmd:
+    enabled: true
+  hadolint:
+    enabled: true
+  checkov:
+    enabled: true
+  markdownlint:
+    enabled: true
+  actionlint:
+    enabled: true
+  yamllint:
+    enabled: true
+  github-checks:
+    enabled: true
