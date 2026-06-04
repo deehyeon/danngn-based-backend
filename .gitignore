@@ -35,3 +35,27 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Sensitive / Secret files ###
+.env
+.env.*
+!.env.example
+
+# Spring Boot 환경별 설정
+**/application.yaml
+**/application-secret*.yaml
+**/application-local*.yaml
+**/application-dev*.yaml
+**/application-prod*.yaml
+
+
+# 인증서 및 키 파일
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# 로그
+logs/
+*.log
