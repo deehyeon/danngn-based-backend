@@ -30,7 +30,11 @@ public enum GlobalErrorType implements ErrorType {
 
     // 컬렉션 델타 검증
     DUPLICATED_CHILD_ID(HttpStatus.BAD_REQUEST, "요청에 중복된 자식 ID가 포함되어 있습니다."),
-    INVALID_CHILD_ID(HttpStatus.BAD_REQUEST, "유효하지 않은 자식 ID입니다.");
+    INVALID_CHILD_ID(HttpStatus.BAD_REQUEST, "유효하지 않은 자식 ID입니다."),
+
+    // Storage
+    STORAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
+    STORAGE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 삭제에 실패했습니다.");
 
     private final HttpStatus status;
 
