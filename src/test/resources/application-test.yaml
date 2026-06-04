@@ -1,0 +1,47 @@
+# JWT
+jwt:
+  secret: test-secret-key-that-is-at-least-64-bytes-long-for-hs512-algorithm-padding
+  token:
+    access-expiration-time: 3600000
+    refresh-expiration-time: 1209600000
+
+spring:
+  # Datasource (H2 in-memory)
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+  # Disable MongoDB / Redis / Spring Session auto-configuration
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.mongodb.MongoDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  # Spring Session: use no backing store (avoids RedisConnectionFactory requirement)
+  session:
+    store-type: none
+
+# OAuth Kakao (dummy values - not called in unit/slice tests)
+oauth:
+  kakao:
+    client-id: test-client-id
+    redirect-uri: http://localhost/callback
+    token-uri: https://kauth.kakao.com/oauth/token
+    jwks-uri: https://kauth.kakao.com/.well-known/jwks.json
+    issuer: https://kauth.kakao.com
+
+cors:
+  origin:
+    test: "http://localhost:3000"
+    production: "http://localhost:3000"
+    development: "http://localhost:3000"
