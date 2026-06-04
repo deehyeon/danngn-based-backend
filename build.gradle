@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.6'
     id 'io.spring.dependency-management' version '1.1.7'
+    id "jacoco"
 }
 
 group = 'backend'
@@ -20,28 +21,114 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     implementation 'org.springframework.boot:spring-boot-starter-jersey'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'
-    implementation 'org.springframework.boot:spring-boot-starter-session-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2'
     compileOnly 'org.projectlombok:lombok'
-    runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+
+    // DB
+    implementation 'org.springframework.boot:spring-boot-starter-session-data-redis'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // TEST
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-jersey-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-session-data-redis-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
     testCompileOnly 'org.projectlombok:lombok'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.h2database:h2'
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy 'jacocoTestReport' // test 태스크가 끝난 후 실행
+}
+
+// jacoco 정보
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+// jacoco Report 생성
+jacocoTestReport {
+    dependsOn test // test 종속성 추가
+
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/dto/**',
+                    '**/*InitData*',
+                    '**/*Application*',
+                    '**/exception/**',
+                    '**/config/**',
+                    '**/MemberRole*',
+                    // 외부 시스템 직접 통신 — 순수 단위 테스트 불가
+                    '**/KakaoOAuthClient*',
+                    '**/adapter/security/**',   // JwtAuthenticationFilter, JwtTokenProvider
+                    '**/adapter/RedisMemoryMap*',
+                    '**.security.**',
+                    '**.webapi.**',
+            ])
+        }))
+    }
+
+    finalizedBy 'jacocoTestCoverageVerification' // jacocoTestReport 태스크가 끝난 후 실행
+}
+
+// jacoco Test 유효성 확인
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            enabled = true
+            element = 'CLASS'
+
+            // 라인 커버리지를 최소한 80% 만족시켜야 한다.
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.30
+            }
+            // 브랜치 커버리지를 최소한 70% 만족시켜야 한다.
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.30
+            }
+
+            excludes = [
+                    '**.dto.**',
+                    '**.*InitData*',
+                    '**.*Application*',
+                    '**.exception.**',
+                    '**.config.**',
+                    '**.MemberRole*',
+                    '**.KakaoOAuthClient*',
+                    '**.adapter.RedisMemoryMap*',
+                    '**.security.**',
+                    '**.webapi.**',
+            ]
+        }
+    }
 }
