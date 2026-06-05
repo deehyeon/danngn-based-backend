@@ -14,6 +14,7 @@ public enum MemberErrorType implements ErrorType {
     ADDRESS_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 주소입니다."),
     INVALID_PHONE_NUMBER(HttpStatus.BAD_REQUEST, "유효하지 않은 전화번호입니다."),
     INVALID_NAME(HttpStatus.BAD_REQUEST, "유효하지 않은 이름입니다."),
+    NICKNAME_TOO_LONG(HttpStatus.BAD_REQUEST, "닉네임은 20자 이하여야 합니다."),
     ;
 
     private final HttpStatus status;

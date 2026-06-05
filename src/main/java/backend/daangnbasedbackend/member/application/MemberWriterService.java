@@ -18,29 +18,47 @@ public class MemberWriterService implements MemberWriter {
 
     @Override
     public void registerAdditionalInfo(Long memberId, MemberInfoReq memberInfoReq) {
-        Member member = findById(memberId);
-        member.registerAdditionalInfo(memberInfoReq.location(),  memberInfoReq.email(), memberInfoReq.phoneNumber());
-    }
-
-    @Override
-    public void updateLocation(Long memberId, String location) {
-        Member member = findById(memberId);
-        member.updateLocation(location);
-    }
-
-    @Override
-    public void updatePhoneNumber(Long memberId, String phoneNumber) {
-        Member member = findById(memberId);
-        member.updatePhoneNumber(phoneNumber);
+        Member member = findActiveById(memberId);
+        member.registerAdditionalInfo(memberInfoReq.location(), memberInfoReq.email(), memberInfoReq.phoneNumber());
     }
 
     @Override
     public void updateNickname(Long memberId, String nickname) {
-        Member member = findById(memberId);
+        Member member = findActiveById(memberId);
         member.updateNickname(nickname);
     }
 
-    private Member findById(Long memberId) {
+    @Override
+    public void updateLocation(Long memberId, String location) {
+        Member member = findActiveById(memberId);
+        member.updateLocation(location);
+    }
+
+    @Override
+    public void updateEmail(Long memberId, String email) {
+        Member member = findActiveById(memberId);
+        member.updateEmail(email);
+    }
+
+    @Override
+    public void updatePhoneNumber(Long memberId, String phoneNumber) {
+        Member member = findActiveById(memberId);
+        member.updatePhoneNumber(phoneNumber);
+    }
+
+    @Override
+    public void updateProfileImage(Long memberId, String profileImageUrl) {
+        Member member = findActiveById(memberId);
+        member.updateProfileImage(profileImageUrl);
+    }
+
+    @Override
+    public void applyMannerDelta(Long memberId, Double delta) {
+        Member member = findActiveById(memberId);
+        member.applyMannerDelta(delta);
+    }
+
+    private Member findActiveById(Long memberId) {
         return memberRepository.findById(memberId)
                 .filter(m -> !m.getIsDeleted())
                 .orElseThrow(() -> new MemberException(MemberErrorType.MEMBER_NOT_FOUND));
