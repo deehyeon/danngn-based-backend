@@ -1,4 +1,4 @@
-package backend.daangnbasedbackend.global.application;
+package backend.daangnbasedbackend.global.application.provided;
 
 import org.springframework.security.core.Authentication;
 

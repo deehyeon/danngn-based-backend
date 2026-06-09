@@ -1,6 +1,6 @@
 package backend.daangnbasedbackend.global.adapter.security;
 
-import backend.daangnbasedbackend.global.application.TokenProviderPort;
+import backend.daangnbasedbackend.global.application.provided.TokenProviderPort;
 import backend.daangnbasedbackend.auth.exception.AuthException;
 import backend.daangnbasedbackend.global.exception.ErrorType;
 import backend.daangnbasedbackend.global.webapi.response.ApiResponse;
