@@ -28,4 +28,10 @@ public class MemberFinderService implements MemberFinder {
                 .map(MemberRes::from)
                 .orElseThrow(() -> new MemberException(MemberErrorType.MEMBER_NOT_FOUND));
     }
+
+    @Override
+    public void validateExist(Long memberId) {
+        memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberException(MemberErrorType.MEMBER_NOT_FOUND));
+    }
 }

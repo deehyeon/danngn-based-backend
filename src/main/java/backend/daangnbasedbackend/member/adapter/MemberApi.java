@@ -8,19 +8,18 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "MEMBER", description = "회원 정보 API")
 @RequestMapping("/v1/members")
 public interface MemberApi {
-
     @Operation(summary = "내 프로필 조회", description = "현재 로그인한 회원의 프로필을 조회합니다.")
     @GetMapping("/me")
     ApiResponse<MemberRes> getMyProfile(@AuthenticationPrincipal AuthDetails authDetails);
+
+    @Operation(summary = "회원 프로필 조회", description = "특정 회원의 프로필을 조회합니다.")
+    @GetMapping("/{memberId}")
+    ApiResponse<MemberRes> getMemberProfile(@AuthenticationPrincipal AuthDetails authDetails, @PathVariable("memberId") Long memberId);
 
     @Operation(summary = "추가 정보 등록", description = "소셜 로그인 후 위치, 이메일, 전화번호를 등록하고 GUEST에서 USER로 승격됩니다.")
     @PostMapping("/me/additional-info")
