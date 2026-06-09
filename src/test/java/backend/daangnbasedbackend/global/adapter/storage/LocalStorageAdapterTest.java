@@ -132,7 +132,6 @@ class LocalStorageAdapterTest {
         // given: 비어있지 않은 디렉토리를 삭제 대상으로 지정 → DirectoryNotEmptyException
         Path dir = Files.createDirectory(tempDir.resolve("images"));
         Files.createFile(dir.resolve("inner.txt"));
-        // relativePath = "images" → tempDir/images
         String dirUrl = BASE_URL + "/images";
 
         // when & then
