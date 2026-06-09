@@ -40,6 +40,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-session-data-redis'
     runtimeOnly 'org.postgresql:postgresql'
 
+    // lock
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:6.9.1'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.9.1'
+    implementation 'org.redisson:redisson:3.24.3'
+
     // TEST
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -88,6 +93,7 @@ jacocoTestReport {
                     '**/KakaoOAuthClient*',
                     '**/adapter/security/**',   // JwtAuthenticationFilter, JwtTokenProvider
                     '**/adapter/RedisMemoryMap*',
+                    '**/adapter/RedisFavoriteCacheRepository*',
                     '**.security.**',
                     '**.webapi.**',
             ])
@@ -126,6 +132,7 @@ jacocoTestCoverageVerification {
                     '**.MemberRole*',
                     '**.KakaoOAuthClient*',
                     '**.adapter.RedisMemoryMap*',
+                    '**.adapter.RedisFavoriteCacheRepository*',
                     '**.security.**',
                     '**.webapi.**',
             ]
