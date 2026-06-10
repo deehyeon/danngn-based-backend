@@ -34,7 +34,8 @@ public enum GlobalErrorType implements ErrorType {
 
     // Storage
     STORAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다."),
-    STORAGE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 삭제에 실패했습니다.");
+    STORAGE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 삭제에 실패했습니다."),
+    STORAGE_INVALID_TOKEN(HttpStatus.BAD_REQUEST, "유효하지 않거나 만료된 업로드 토큰입니다.");
 
     private final HttpStatus status;
 

@@ -3,13 +3,12 @@ package backend.daangnbasedbackend.auth.integration;
 import backend.daangnbasedbackend.auth.application.KakaoOAuthClient;
 import backend.daangnbasedbackend.auth.application.dto.OAuthProfile;
 import backend.daangnbasedbackend.auth.domain.OAuthProvider;
-import backend.daangnbasedbackend.global.application.MemoryMap;
-import backend.daangnbasedbackend.global.application.TokenProviderPort;
+import backend.daangnbasedbackend.global.application.provided.MemoryMap;
 import backend.daangnbasedbackend.member.application.required.MemberRepository;
+import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,6 +39,7 @@ class AuthIntegrationTest {
 
     @MockitoBean KakaoOAuthClient kakaoOAuthClient;
     @MockitoBean MemoryMap memoryMap;
+    @MockitoBean FavoriteCacheRepository favoriteCacheRepository;
 
     private static final String BASE_URL = "/v1/auth";
 

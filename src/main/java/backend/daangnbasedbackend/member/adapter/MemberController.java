@@ -23,6 +23,12 @@ public class MemberController implements MemberApi {
     }
 
     @Override
+    public ApiResponse<MemberRes> getMemberProfile(@AuthenticationPrincipal AuthDetails authDetails, Long memberId) {
+        MemberRes result = memberFinder.findById(memberId);
+        return ApiResponse.success(result);
+    }
+
+    @Override
     public ApiResponse<?> registerAdditionalInfo(@AuthenticationPrincipal AuthDetails authDetails, MemberInfoReq req) {
         memberWriter.registerAdditionalInfo(authDetails.getMemberId(), req);
         return ApiResponse.success();

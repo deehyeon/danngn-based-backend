@@ -1,6 +1,7 @@
 package backend.daangnbasedbackend.global.adapter.storage;
 
-import backend.daangnbasedbackend.global.application.StoragePort;
+import backend.daangnbasedbackend.global.application.dto.PresignedUrlRes;
+import backend.daangnbasedbackend.global.application.provided.StoragePort;
 import backend.daangnbasedbackend.global.exception.common.GlobalErrorType;
 import backend.daangnbasedbackend.global.exception.common.GlobalException;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,6 @@ import java.util.UUID;
 @Component
 @ConditionalOnProperty(name = "storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalStorageAdapter implements StoragePort {
-
     @Value("${storage.local.base-path:./uploads}")
     private String basePath;
 
@@ -49,5 +49,11 @@ public class LocalStorageAdapter implements StoragePort {
             log.error("로컬 파일 삭제 실패: fileUrl={}", fileUrl, e);
             throw new GlobalException(GlobalErrorType.STORAGE_DELETE_FAILED);
         }
+    }
+
+    @Override
+    public PresignedUrlRes generatePresignedUrl(String directory, Long memberId, String originalFilename, String contentType) {
+        throw new UnsupportedOperationException(
+                "로컬 스토리지는 Presigned URL을 지원하지 않습니다. POST /v1/storage/upload 엔드포인트를 사용하세요.");
     }
 }

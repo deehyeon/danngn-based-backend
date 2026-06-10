@@ -1,10 +1,15 @@
 package backend.daangnbasedbackend.global.adapter;
 
-import backend.daangnbasedbackend.global.application.MemoryMap;
+import backend.daangnbasedbackend.global.application.provided.MemoryMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import org.springframework.data.redis.core.script.RedisScript;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -28,7 +33,31 @@ public class RedisMemoryMap implements MemoryMap {
     }
 
     @Override
-    public boolean checkExistsValue(String key) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+    public long increment(String key, long delta) {
+        Long result = redisTemplate.opsForValue().increment(key, delta);
+        return result != null ? result : 0L;
+    }
+
+    @Override
+    public String getAndDelete(String key) {
+        return redisTemplate.opsForValue().getAndDelete(key);
+    }
+
+    @Override
+    public void addToSet(String key, String value) {
+        redisTemplate.opsForSet().add(key, value);
+    }
+
+    @Override
+    public Set<String> popAllFromSet(String key) {
+        RedisScript<List> script = RedisScript.of(
+                "local m = redis.call('SMEMBERS', KEYS[1]) " +
+                "if #m > 0 then redis.call('DEL', KEYS[1]) end " +
+                "return m",
+                List.class
+        );
+        List<String> result = redisTemplate.execute(script, List.of(key));
+        if (result == null || result.isEmpty()) return Set.of();
+        return new HashSet<>(result);
     }
 }

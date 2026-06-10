@@ -47,6 +47,7 @@ out/
 **/application-local*.yaml
 **/application-dev*.yaml
 **/application-prod*.yaml
+**/application-test.yaml
 
 
 # 인증서 및 키 파일
