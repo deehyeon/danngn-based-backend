@@ -24,7 +24,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,18 +53,28 @@ class FavoriteWriterServiceTest {
         return product;
     }
 
+    private FavoriteProduct activeFavorite() {
+        return FavoriteProduct.create(MEMBER_ID, PRODUCT_ID);
+    }
+
+    private FavoriteProduct softDeletedFavorite() {
+        FavoriteProduct fav = FavoriteProduct.create(MEMBER_ID, PRODUCT_ID);
+        fav.softDelete();
+        return fav;
+    }
+
     // ==========================================
-    // toggleFavorite — 찜 추가
+    // toggleFavorite — 신규 찜 추가 (레코드 없음)
     // ==========================================
 
     @Test
-    @DisplayName("toggleFavorite: 찜하지 않은 상품을 찜하면 isFavorited=true, likeCount+1")
-    void toggleFavorite_notYetFavorited_addsAndReturnsTrue() {
+    @DisplayName("toggleFavorite: 찜 레코드가 없으면 신규 저장하고 isFavorited=true, likeCount+1")
+    void toggleFavorite_noRecord_savesAndReturnsTrue() {
         // given
         Product product = activeProduct(5L);
-        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
         when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
-        when(favoriteProductRepository.existsByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(false);
+        when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.empty());
         when(favoriteProductRepository.save(any(FavoriteProduct.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // when
@@ -78,14 +87,19 @@ class FavoriteWriterServiceTest {
         verify(favoriteCacheRepository).recordLikeChange(PRODUCT_ID, 1L);
     }
 
+    // ==========================================
+    // toggleFavorite — 찜 취소 (활성 레코드 소프트 삭제)
+    // ==========================================
+
     @Test
-    @DisplayName("toggleFavorite: 이미 찜한 상품을 다시 누르면 isFavorited=false, likeCount-1")
-    void toggleFavorite_alreadyFavorited_removesAndReturnsFalse() {
+    @DisplayName("toggleFavorite: 활성 찜 레코드가 있으면 소프트 삭제하고 isFavorited=false, likeCount-1")
+    void toggleFavorite_activeFavorite_softDeletesAndReturnsFalse() {
         // given
         Product product = activeProduct(5L);
-        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(product));
+        FavoriteProduct activeFav = activeFavorite();
+        when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
         when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
-        when(favoriteProductRepository.existsByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(true);
+        when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.of(activeFav));
 
         // when
         ToggleFavoriteRes result = favoriteWriterService.toggleFavorite(MEMBER_ID, PRODUCT_ID);
@@ -93,19 +107,48 @@ class FavoriteWriterServiceTest {
         // then
         assertThat(result.favorited()).isFalse();
         assertThat(result.likeCount()).isEqualTo(4L);
-        verify(favoriteProductRepository).deleteByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID);
-        verify(favoriteCacheRepository).recordLikeChange(PRODUCT_ID, -1L);
+        assertThat(activeFav.getIsDeleted()).isTrue();
         verify(favoriteProductRepository, never()).save(any());
+        verify(favoriteCacheRepository).recordLikeChange(PRODUCT_ID, -1L);
     }
+
+    // ==========================================
+    // toggleFavorite — 재찜 (소프트 삭제 레코드 복원)
+    // ==========================================
+
+    @Test
+    @DisplayName("toggleFavorite: 소프트 삭제된 레코드가 있으면 복원하고 isFavorited=true, likeCount+1")
+    void toggleFavorite_softDeletedFavorite_restoresAndReturnsTrue() {
+        // given
+        Product product = activeProduct(5L);
+        FavoriteProduct softDeletedFav = softDeletedFavorite();
+        when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
+        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
+        when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.of(softDeletedFav));
+
+        // when
+        ToggleFavoriteRes result = favoriteWriterService.toggleFavorite(MEMBER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(result.favorited()).isTrue();
+        assertThat(result.likeCount()).isEqualTo(6L);
+        assertThat(softDeletedFav.getIsDeleted()).isFalse();
+        verify(favoriteProductRepository, never()).save(any());
+        verify(favoriteCacheRepository).recordLikeChange(PRODUCT_ID, 1L);
+    }
+
+    // ==========================================
+    // toggleFavorite — likeCount 계산
+    // ==========================================
 
     @Test
     @DisplayName("toggleFavorite: Redis delta가 누적된 경우 likeCount에 반영된다")
     void toggleFavorite_withExistingDelta_reflectsDeltaInCount() {
         // given
         Product product = activeProduct(10L);
-        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(product));
-        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(3L); // 아직 DB에 미반영된 +3
-        when(favoriteProductRepository.existsByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(false);
+        when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
+        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(3L);
+        when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.empty());
         when(favoriteProductRepository.save(any(FavoriteProduct.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // when
@@ -120,9 +163,10 @@ class FavoriteWriterServiceTest {
     void toggleFavorite_likeCountCannotGoBelowZero() {
         // given
         Product product = activeProduct(0L);
-        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(product));
-        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(-1L); // 비정상 상태 시뮬레이션
-        when(favoriteProductRepository.existsByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(true);
+        FavoriteProduct activeFav = activeFavorite();
+        when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
+        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(-1L);
+        when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.of(activeFav));
 
         // when
         ToggleFavoriteRes result = favoriteWriterService.toggleFavorite(MEMBER_ID, PRODUCT_ID);
@@ -139,22 +183,7 @@ class FavoriteWriterServiceTest {
     @DisplayName("toggleFavorite: 존재하지 않는 상품이면 PRODUCT_NOT_FOUND 예외를 던진다")
     void toggleFavorite_productNotFound_throwsException() {
         // given
-        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.empty());
-
-        // when & then
-        assertThatThrownBy(() -> favoriteWriterService.toggleFavorite(MEMBER_ID, PRODUCT_ID))
-                .isInstanceOf(ProductException.class)
-                .extracting("errorType")
-                .isEqualTo(ProductErrorType.PRODUCT_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("toggleFavorite: 삭제된 상품이면 PRODUCT_NOT_FOUND 예외를 던진다")
-    void toggleFavorite_deletedProduct_throwsException() {
-        // given
-        Product deleted = activeProduct(0L);
-        deleted.softDelete();
-        when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(deleted));
+        when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> favoriteWriterService.toggleFavorite(MEMBER_ID, PRODUCT_ID))

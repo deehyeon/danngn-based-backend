@@ -13,6 +13,8 @@ import backend.daangnbasedbackend.product.exception.ProductException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class FavoriteWriterService implements FavoriteWriter {
@@ -22,8 +24,7 @@ public class FavoriteWriterService implements FavoriteWriter {
 
     @DistributedLock(key = "'favorite:member:' + #memberId + ':product:' + #productId")
     public ToggleFavoriteRes toggleFavorite(Long memberId, Long productId) {
-        Product product = productRepository.findById(productId)
-                .filter(p -> !p.getIsDeleted())
+        Product product = productRepository.findByIdAndIsDeletedFalse(productId)
                 .orElseThrow(() -> new ProductException(ProductErrorType.PRODUCT_NOT_FOUND));
 
         long baseLikeCount = product.getLikeCount();
@@ -32,10 +33,18 @@ public class FavoriteWriterService implements FavoriteWriter {
         boolean isFavorited;
         long deltaChange;
 
-        if (favoriteProductRepository.existsByMemberIdAndProductId(memberId, productId)) {
-            favoriteProductRepository.deleteByMemberIdAndProductId(memberId, productId);
-            deltaChange = -1L;
-            isFavorited = false;
+        Optional<FavoriteProduct> existing = favoriteProductRepository.findByMemberIdAndProductId(memberId, productId);
+        if (existing.isPresent()) {
+            FavoriteProduct fav = existing.get();
+            if (!fav.getIsDeleted()) {
+                fav.softDelete();
+                deltaChange = -1L;
+                isFavorited = false;
+            } else {
+                fav.restore();
+                deltaChange = 1L;
+                isFavorited = true;
+            }
         } else {
             favoriteProductRepository.save(FavoriteProduct.create(memberId, productId));
             deltaChange = 1L;

@@ -20,5 +20,5 @@ public interface MemoryMap {
      * Set 전체를 원자적으로 추출하고 삭제 (RENAME → SMEMBERS → DEL).
      * key가 존재하지 않으면 빈 Set 반환.
      */
-    Set<String> drainSet(String key);
+    Set<String> popAllFromSet(String key);
 }
