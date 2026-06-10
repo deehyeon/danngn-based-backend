@@ -19,7 +19,6 @@ import java.util.UUID;
 @Component
 @ConditionalOnProperty(name = "storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalStorageAdapter implements StoragePort {
-
     @Value("${storage.local.base-path:./uploads}")
     private String basePath;
 
@@ -53,7 +52,7 @@ public class LocalStorageAdapter implements StoragePort {
     }
 
     @Override
-    public PresignedUrlRes generatePresignedUrl(String directory, String originalFilename, String contentType) {
+    public PresignedUrlRes generatePresignedUrl(String directory, Long memberId, String originalFilename, String contentType) {
         throw new UnsupportedOperationException(
                 "로컬 스토리지는 Presigned URL을 지원하지 않습니다. POST /v1/storage/upload 엔드포인트를 사용하세요.");
     }

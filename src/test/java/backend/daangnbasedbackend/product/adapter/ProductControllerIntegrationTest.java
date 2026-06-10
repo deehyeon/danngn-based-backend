@@ -121,7 +121,7 @@ class ProductControllerIntegrationTest {
     void registerProduct_success() throws Exception {
         // given
         ProductCreateReq req = new ProductCreateReq(1L, "아이폰", "좋은 상태",
-                BigDecimal.valueOf(500000), "서울", List.of("img.jpg"));
+                BigDecimal.valueOf(500000), List.of("img.jpg"));
         given(productWriter.create(eq(MEMBER_ID), any(ProductCreateReq.class))).willReturn(1L);
 
         // when & then
@@ -138,7 +138,7 @@ class ProductControllerIntegrationTest {
     void updateProduct_success() throws Exception {
         // given
         ProductUpdateReq req = new ProductUpdateReq(1L, "아이폰 수정", "설명 수정",
-                BigDecimal.valueOf(400000), "경기 성남시", List.of());
+                BigDecimal.valueOf(400000), List.of());
 
         // when & then
         mockMvc.perform(patch(BASE_URL + "/1")

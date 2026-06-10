@@ -4,6 +4,7 @@ import backend.daangnbasedbackend.global.application.security.AuthDetails;
 import backend.daangnbasedbackend.global.webapi.response.ApiResponse;
 import backend.daangnbasedbackend.product.application.dto.ProductCategoryRes;
 import backend.daangnbasedbackend.product.application.dto.ProductCreateReq;
+import backend.daangnbasedbackend.product.application.dto.ProductFeedRes;
 import backend.daangnbasedbackend.product.application.dto.ProductRes;
 import backend.daangnbasedbackend.product.application.dto.ProductSummaryRes;
 import backend.daangnbasedbackend.product.application.dto.ProductUpdateReq;
@@ -108,5 +109,10 @@ public class ProductController implements ProductApi {
     @Override
     public ApiResponse<List<ProductCategoryRes>> getCategories() {
         return ApiResponse.success(productCategoryFinder.findAll());
+    }
+
+    @Override
+    public ApiResponse<ProductFeedRes> getProductFeed(AuthDetails authDetails, String cursor, int size, ProductState state) {
+        return ApiResponse.success(productFinder.findFeed(authDetails.getMemberId(), cursor, size, state));
     }
 }

@@ -2,6 +2,7 @@ package backend.daangnbasedbackend.product.adapter;
 
 import backend.daangnbasedbackend.global.application.security.AuthDetails;
 import backend.daangnbasedbackend.global.webapi.response.ApiResponse;
+import backend.daangnbasedbackend.product.application.dto.ProductFeedRes;
 import backend.daangnbasedbackend.product.application.dto.*;
 import backend.daangnbasedbackend.product.domain.ProductState;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,4 +92,13 @@ public interface ProductApi {
     @Operation(summary = "카테고리 목록 조회", description = "상품 카테고리 전체 목록을 조회한다.")
     @GetMapping("/categories")
     ApiResponse<List<ProductCategoryRes>> getCategories();
+
+    @Operation(summary = "동네 상품 피드 조회", description = "사용자의 동네 기반 상품 목록을 커서 페이지네이션으로 조회한다. refreshedAt DESC, id DESC 정렬.")
+    @GetMapping("/feed")
+    ApiResponse<ProductFeedRes> getProductFeed(
+            @AuthenticationPrincipal AuthDetails authDetails,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) ProductState state
+    );
 }

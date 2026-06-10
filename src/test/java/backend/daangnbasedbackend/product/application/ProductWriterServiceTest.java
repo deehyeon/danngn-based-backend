@@ -1,5 +1,10 @@
 package backend.daangnbasedbackend.product.application;
 
+import backend.daangnbasedbackend.member.application.dto.MemberRes;
+import backend.daangnbasedbackend.member.application.provided.MemberFinder;
+import backend.daangnbasedbackend.member.domain.MemberRole;
+import backend.daangnbasedbackend.member.exception.MemberErrorType;
+import backend.daangnbasedbackend.member.exception.MemberException;
 import backend.daangnbasedbackend.product.application.dto.ProductCreateReq;
 import backend.daangnbasedbackend.product.application.dto.ProductUpdateReq;
 import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
@@ -20,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,12 +39,17 @@ import static org.mockito.Mockito.when;
 class ProductWriterServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private ProductCategoryRepository productCategoryRepository;
+    @Mock private MemberFinder memberFinder;
 
     private ProductWriterService productWriterService;
 
     @BeforeEach
     void setUp() {
-        productWriterService = new ProductWriterService(productRepository, productCategoryRepository);
+        productWriterService = new ProductWriterService(productRepository, productCategoryRepository, memberFinder);
+    }
+
+    private MemberRes memberWithLocation(String location) {
+        return new MemberRes(1L, "닉네임", "test@test.com", location, 36.5, null, null, MemberRole.USER);
     }
 
     private Product activeProduct() {
@@ -55,8 +66,9 @@ class ProductWriterServiceTest {
     @DisplayName("create: 상품이 저장되고 ID를 반환한다")
     void create_savesProductAndReturnsId() {
         // given
-        ProductCreateReq req = new ProductCreateReq(1L, "아이폰", "설명", BigDecimal.valueOf(500000), "서울", List.of("img.jpg"));
+        ProductCreateReq req = new ProductCreateReq(1L, "아이폰", "설명", BigDecimal.valueOf(500000), List.of("img.jpg"));
         Product saved = activeProduct();
+        when(memberFinder.findById(1L)).thenReturn(memberWithLocation("서울"));
         when(productCategoryRepository.findById(1L)).thenReturn(Optional.of(ProductCategory.create("디지털기기")));
         when(productRepository.save(any(Product.class))).thenReturn(saved);
 
@@ -69,10 +81,25 @@ class ProductWriterServiceTest {
     }
 
     @Test
+    @DisplayName("create: 동네 미설정 회원이 등록하면 LOCATION_NOT_SET 예외를 던진다")
+    void create_memberLocationNotSet_throwsException() {
+        // given
+        ProductCreateReq req = new ProductCreateReq(1L, "아이폰", "설명", BigDecimal.valueOf(500000), null);
+        when(memberFinder.findById(1L)).thenReturn(memberWithLocation(null));
+
+        // when & then
+        assertThatThrownBy(() -> productWriterService.create(1L, req))
+                .isInstanceOf(MemberException.class)
+                .extracting("errorType")
+                .isEqualTo(MemberErrorType.LOCATION_NOT_SET);
+    }
+
+    @Test
     @DisplayName("create: 존재하지 않는 카테고리 — PRODUCT_CATEGORY_NOT_FOUND 예외를 던진다")
     void create_categoryNotFound_throwsException() {
         // given
-        ProductCreateReq req = new ProductCreateReq(99L, "아이폰", "설명", BigDecimal.valueOf(500000), "서울", null);
+        ProductCreateReq req = new ProductCreateReq(99L, "아이폰", "설명", BigDecimal.valueOf(500000), null);
+        when(memberFinder.findById(1L)).thenReturn(memberWithLocation("서울"));
         when(productCategoryRepository.findById(99L)).thenReturn(Optional.empty());
 
         // when & then
@@ -87,12 +114,13 @@ class ProductWriterServiceTest {
     // ==========================================
 
     @Test
-    @DisplayName("update: 상품 필드가 수정된다")
+    @DisplayName("update: 상품 필드가 수정되고 location은 회원 동네로 갱신된다")
     void update_updatesProductFields() {
         // given
         Product product = activeProduct();
-        ProductUpdateReq req = new ProductUpdateReq(2L, "새 제목", "새 설명", BigDecimal.valueOf(300000), "경기 성남시", List.of());
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        ProductUpdateReq req = new ProductUpdateReq(2L, "새 제목", "새 설명", BigDecimal.valueOf(300000), List.of());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
+        when(memberFinder.findById(1L)).thenReturn(memberWithLocation("경기 성남시"));
         when(productCategoryRepository.findById(2L)).thenReturn(Optional.of(ProductCategory.create("가구/인테리어")));
 
         // when
@@ -111,8 +139,8 @@ class ProductWriterServiceTest {
     void update_notOwner_throwsException() {
         // given
         Product product = activeProduct();
-        ProductUpdateReq req = new ProductUpdateReq(1L, "제목", "설명", BigDecimal.valueOf(10000), "서울", List.of());
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        ProductUpdateReq req = new ProductUpdateReq(1L, "제목", "설명", BigDecimal.valueOf(10000), List.of());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.update(999L, 10L, req))
@@ -125,8 +153,8 @@ class ProductWriterServiceTest {
     @DisplayName("update: 존재하지 않는 상품 — PRODUCT_NOT_FOUND 예외를 던진다")
     void update_productNotFound_throwsException() {
         // given
-        ProductUpdateReq req = new ProductUpdateReq(1L, "제목", "설명", BigDecimal.valueOf(10000), "서울", List.of());
-        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+        ProductUpdateReq req = new ProductUpdateReq(1L, "제목", "설명", BigDecimal.valueOf(10000), List.of());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productWriterService.update(1L, 10L, req))
@@ -139,10 +167,8 @@ class ProductWriterServiceTest {
     @DisplayName("update: 탈퇴·삭제된 상품 — PRODUCT_NOT_FOUND 예외를 던진다")
     void update_deletedProduct_throwsException() {
         // given
-        Product deleted = activeProduct();
-        deleted.softDelete();
-        ProductUpdateReq req = new ProductUpdateReq(1L, "제목", "설명", BigDecimal.valueOf(10000), "서울", List.of());
-        when(productRepository.findById(10L)).thenReturn(Optional.of(deleted));
+        ProductUpdateReq req = new ProductUpdateReq(1L, "제목", "설명", BigDecimal.valueOf(10000), List.of());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productWriterService.update(1L, 10L, req))
@@ -160,7 +186,7 @@ class ProductWriterServiceTest {
     void delete_softDeletesProduct() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when
         productWriterService.delete(1L, 10L);
@@ -174,7 +200,7 @@ class ProductWriterServiceTest {
     void delete_notOwner_throwsException() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.delete(999L, 10L))
@@ -187,7 +213,7 @@ class ProductWriterServiceTest {
     @DisplayName("delete: 존재하지 않는 상품 — PRODUCT_NOT_FOUND 예외를 던진다")
     void delete_productNotFound_throwsException() {
         // given
-        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productWriterService.delete(1L, 10L))
@@ -205,7 +231,7 @@ class ProductWriterServiceTest {
     void refresh_incrementsRefreshCount() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when
         productWriterService.refresh(1L, 10L);
@@ -219,7 +245,7 @@ class ProductWriterServiceTest {
     void refresh_notOwner_throwsException() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.refresh(999L, 10L))
@@ -232,13 +258,74 @@ class ProductWriterServiceTest {
     @DisplayName("refresh: 존재하지 않는 상품 — PRODUCT_NOT_FOUND 예외를 던진다")
     void refresh_productNotFound_throwsException() {
         // given
-        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productWriterService.refresh(1L, 10L))
                 .isInstanceOf(ProductException.class)
                 .extracting("errorType")
                 .isEqualTo(ProductErrorType.PRODUCT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("refresh: 끌어올리기 횟수가 5회면 REFRESH_LIMIT_EXCEEDED 예외를 던진다")
+    void refresh_exceedsMaxCount_throwsException() {
+        // given
+        Product product = activeProduct();
+        ReflectionTestUtils.setField(product, "refreshCount", 5L);
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
+
+        // when & then
+        assertThatThrownBy(() -> productWriterService.refresh(1L, 10L))
+                .isInstanceOf(ProductException.class)
+                .extracting("errorType")
+                .isEqualTo(ProductErrorType.REFRESH_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("refresh: 이전 끌어올리기로부터 24시간이 경과하지 않으면 REFRESH_COOLDOWN_NOT_ELAPSED 예외를 던진다")
+    void refresh_within24Hours_throwsException() {
+        // given
+        Product product = activeProduct();
+        ReflectionTestUtils.setField(product, "refreshCount", 1L);
+        ReflectionTestUtils.setField(product, "refreshAt", LocalDateTime.now().minusHours(1));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
+
+        // when & then
+        assertThatThrownBy(() -> productWriterService.refresh(1L, 10L))
+                .isInstanceOf(ProductException.class)
+                .extracting("errorType")
+                .isEqualTo(ProductErrorType.REFRESH_COOLDOWN_NOT_ELAPSED);
+    }
+
+    @Test
+    @DisplayName("refresh: 이전 끌어올리기로부터 24시간이 경과하면 성공한다")
+    void refresh_after24Hours_succeeds() {
+        // given
+        Product product = activeProduct();
+        ReflectionTestUtils.setField(product, "refreshCount", 1L);
+        ReflectionTestUtils.setField(product, "refreshAt", LocalDateTime.now().minusHours(25));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
+
+        // when
+        productWriterService.refresh(1L, 10L);
+
+        // then
+        assertThat(product.getRefreshCount()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("refresh: 첫 번째 끌어올리기(refreshCount=0)는 쿨다운 없이 바로 가능하다")
+    void refresh_firstRefresh_noCooldown() {
+        // given
+        Product product = activeProduct(); // refreshCount=0, refreshAt=now
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
+
+        // when
+        productWriterService.refresh(1L, 10L);
+
+        // then
+        assertThat(product.getRefreshCount()).isEqualTo(1L);
     }
 
     // ==========================================
@@ -250,7 +337,7 @@ class ProductWriterServiceTest {
     void reserve_changesStateToReservedAndAssignsBuyer() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when
         productWriterService.reserve(1L, 10L, 2L);
@@ -265,7 +352,7 @@ class ProductWriterServiceTest {
     void reserve_selfTrade_throwsException() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.reserve(1L, 10L, 1L))
@@ -279,7 +366,7 @@ class ProductWriterServiceTest {
     void reserve_notOwner_throwsException() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.reserve(999L, 10L, 2L))
@@ -292,7 +379,7 @@ class ProductWriterServiceTest {
     @DisplayName("reserve: 존재하지 않는 상품 — PRODUCT_NOT_FOUND 예외를 던진다")
     void reserve_productNotFound_throwsException() {
         // given
-        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productWriterService.reserve(1L, 10L, 2L))
@@ -310,7 +397,7 @@ class ProductWriterServiceTest {
     void completeTrade_changesStateToSoldOutAndAssignsBuyer() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when
         productWriterService.completeTrade(1L, 10L, 2L);
@@ -325,7 +412,7 @@ class ProductWriterServiceTest {
     void completeTrade_selfTrade_throwsException() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.completeTrade(1L, 10L, 1L))
@@ -339,7 +426,7 @@ class ProductWriterServiceTest {
     void completeTrade_notOwner_throwsException() {
         // given
         Product product = activeProduct();
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.completeTrade(999L, 10L, 2L))
@@ -352,7 +439,7 @@ class ProductWriterServiceTest {
     @DisplayName("completeTrade: 존재하지 않는 상품 — PRODUCT_NOT_FOUND 예외를 던진다")
     void completeTrade_productNotFound_throwsException() {
         // given
-        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productWriterService.completeTrade(1L, 10L, 2L))
@@ -372,7 +459,7 @@ class ProductWriterServiceTest {
         Product product = activeProduct();
         product.changeState(ProductState.RESERVED);
         product.assignBuyer(2L);
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when
         productWriterService.cancelReservation(1L, 10L);
@@ -387,7 +474,7 @@ class ProductWriterServiceTest {
     void cancelReservation_notReserved_throwsException() {
         // given
         Product product = activeProduct(); // ON_SALE 상태
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.cancelReservation(1L, 10L))
@@ -402,7 +489,7 @@ class ProductWriterServiceTest {
         // given
         Product product = activeProduct();
         product.changeState(ProductState.RESERVED);
-        when(productRepository.findById(10L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then
         assertThatThrownBy(() -> productWriterService.cancelReservation(999L, 10L))
@@ -415,7 +502,7 @@ class ProductWriterServiceTest {
     @DisplayName("cancelReservation: 존재하지 않는 상품 — PRODUCT_NOT_FOUND 예외를 던진다")
     void cancelReservation_productNotFound_throwsException() {
         // given
-        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productWriterService.cancelReservation(1L, 10L))

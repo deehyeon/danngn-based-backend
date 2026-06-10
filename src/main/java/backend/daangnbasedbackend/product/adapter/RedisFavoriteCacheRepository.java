@@ -14,24 +14,24 @@ import java.util.Set;
 public class RedisFavoriteCacheRepository implements FavoriteCacheRepository {
     private final MemoryMap memoryMap;
 
-    private static final String DELTA_PREFIX         = "FAV:DELTA:";
-    private static final String DIRTY_PRODUCTS_KEY   = "FAV:DELTA_PRODUCTS";
+    private static final String PENDING_LIKE_COUNT_PREFIX  = "FAV:PENDING_LIKE_COUNT:";
+    private static final String PENDING_SYNC_PRODUCTS_KEY  = "FAV:PENDING_SYNC_PRODUCTS";
 
     @Override
     public void recordLikeChange(Long productId, long change) {
-        memoryMap.increment(DELTA_PREFIX + productId, change);
-        memoryMap.addToSet(DIRTY_PRODUCTS_KEY, productId.toString());
+        memoryMap.increment(PENDING_LIKE_COUNT_PREFIX + productId, change);
+        memoryMap.addToSet(PENDING_SYNC_PRODUCTS_KEY, productId.toString());
     }
 
     @Override
     public long getPendingLikeChange(Long productId) {
-        String value = memoryMap.getValue(DELTA_PREFIX + productId);
+        String value = memoryMap.getValue(PENDING_LIKE_COUNT_PREFIX + productId);
         return value == null ? 0L : Long.parseLong(value);
     }
 
     @Override
     public Map<Long, Long> flushPendingLikeChanges() {
-        Set<String> productIds = memoryMap.drainSet(DIRTY_PRODUCTS_KEY);
+        Set<String> productIds = memoryMap.popAllFromSet(PENDING_SYNC_PRODUCTS_KEY);
         if (productIds.isEmpty()) {
             return Map.of();
         }
@@ -39,7 +39,7 @@ public class RedisFavoriteCacheRepository implements FavoriteCacheRepository {
         Map<Long, Long> result = new HashMap<>();
         for (String idStr : productIds) {
             Long productId = Long.parseLong(idStr);
-            String deltaStr = memoryMap.getAndDelete(DELTA_PREFIX + productId);
+            String deltaStr = memoryMap.getAndDelete(PENDING_LIKE_COUNT_PREFIX + productId);
             if (deltaStr != null) {
                 result.put(productId, Long.parseLong(deltaStr));
             }

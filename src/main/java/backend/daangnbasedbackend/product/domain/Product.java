@@ -15,9 +15,20 @@ import java.util.List;
 
 @Entity
 @Getter
-@Table(name = "products")
+@Table(
+    name = "products",
+    indexes = {
+        @Index(
+            name = "idx_products_feed",
+            columnList = "location, is_deleted, state, refreshed_at DESC, id DESC"
+        )
+    }
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Product extends AbstractEntity {
+
+    private static final long MAX_REFRESH_COUNT = 5L;
+    private static final long REFRESH_COOLDOWN_HOURS = 24L;
     @Column(nullable = false)
     private Long sellerId;
 
@@ -44,7 +55,7 @@ public class Product extends AbstractEntity {
     @Column(name = "refresh_count")
     private Long refreshCount = 0L;
 
-    @Column(name = "refresh_at")
+    @Column(name = "refreshed_at")
     private LocalDateTime refreshAt;
 
     @Column(name = "like_count")
@@ -121,6 +132,12 @@ public class Product extends AbstractEntity {
     }
 
     public void refresh() {
+        if (this.refreshCount >= MAX_REFRESH_COUNT) {
+            throw new ProductException(ProductErrorType.REFRESH_LIMIT_EXCEEDED);
+        }
+        if (this.refreshCount > 0 && this.refreshAt.isAfter(LocalDateTime.now().minusHours(REFRESH_COOLDOWN_HOURS))) {
+            throw new ProductException(ProductErrorType.REFRESH_COOLDOWN_NOT_ELAPSED);
+        }
         this.refreshAt = LocalDateTime.now();
         this.refreshCount++;
     }

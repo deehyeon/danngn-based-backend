@@ -12,6 +12,5 @@ public record ProductCreateReq(
         @NotBlank String title,
         @NotBlank String description,
         @NotNull @Positive BigDecimal price,
-        @NotBlank String location,
         List<String> imageUrls
 ) {}

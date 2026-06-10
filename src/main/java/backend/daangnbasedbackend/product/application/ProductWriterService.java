@@ -1,5 +1,8 @@
 package backend.daangnbasedbackend.product.application;
 
+import backend.daangnbasedbackend.member.application.provided.MemberFinder;
+import backend.daangnbasedbackend.member.exception.MemberErrorType;
+import backend.daangnbasedbackend.member.exception.MemberException;
 import backend.daangnbasedbackend.product.application.dto.ProductCreateReq;
 import backend.daangnbasedbackend.product.application.dto.ProductUpdateReq;
 import backend.daangnbasedbackend.product.application.provided.ProductWriter;
@@ -22,9 +25,11 @@ import java.util.List;
 public class ProductWriterService implements ProductWriter {
     private final ProductRepository productRepository;
     private final ProductCategoryRepository productCategoryRepository;
+    private final MemberFinder memberFinder;
 
     @Override
     public Long create(Long sellerId, ProductCreateReq req) {
+        String location = resolveMemberLocation(sellerId);
         ProductCategory category = findCategoryById(req.categoryId());
         Product product = Product.create(
                 sellerId,
@@ -32,7 +37,7 @@ public class ProductWriterService implements ProductWriter {
                 req.title(),
                 req.description(),
                 req.price(),
-                req.location(),
+                location,
                 req.imageUrls() != null ? req.imageUrls() : List.of()
         );
         return productRepository.save(product).getId();
@@ -48,13 +53,14 @@ public class ProductWriterService implements ProductWriter {
             return;
         }
 
+        String location = resolveMemberLocation(sellerId);
         ProductCategory category = findCategoryById(req.categoryId());
         product.updateProduct(
                 category,
                 req.title(),
                 req.description(),
                 req.price(),
-                req.location(),
+                location,
                 req.imageUrls() != null ? req.imageUrls() : List.of()
         );
     }
@@ -98,14 +104,21 @@ public class ProductWriterService implements ProductWriter {
         product.cancelReservation();
     }
 
+    private String resolveMemberLocation(Long memberId) {
+        String location = memberFinder.findById(memberId).location();
+        if (location == null || location.isBlank()) {
+            throw new MemberException(MemberErrorType.LOCATION_NOT_SET);
+        }
+        return location;
+    }
+
     private ProductCategory findCategoryById(Long categoryId) {
         return productCategoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ProductException(ProductErrorType.PRODUCT_CATEGORY_NOT_FOUND));
     }
 
     private Product findActiveById(Long productId) {
-        return productRepository.findById(productId)
-                .filter(p -> !p.getIsDeleted())
+        return productRepository.findByIdAndIsDeletedFalse(productId)
                 .orElseThrow(() -> new ProductException(ProductErrorType.PRODUCT_NOT_FOUND));
     }
 
