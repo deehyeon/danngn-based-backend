@@ -9,10 +9,10 @@ import org.springframework.data.domain.Pageable;
 
 public interface ProductFinder {
     ProductRes findById(Long productId);
-    Page<ProductSummaryRes> findProducts(Pageable pageable);
     Page<ProductSummaryRes> findProductsBySellerId(Long sellerId, ProductState state, Pageable pageable);
     Page<ProductSummaryRes> findProductsByBuyerId(Long buyerId, Pageable pageable);
     Page<ProductSummaryRes> findFavoriteProducts(Long memberId, Pageable pageable);
     boolean isFavorited(Long memberId, Long productId);
-    ProductFeedRes findFeed(Long memberId, String cursor, int size, ProductState state);
+    ProductFeedRes findProductFeed(Long memberId, String cursor, int size, ProductState state);
+    ProductFeedRes search(Long memberId, String keyword, String cursor, int size, ProductState state);
 }

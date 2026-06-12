@@ -21,9 +21,26 @@ services:
     networks:
       - daangn-network
 
+  elasticsearch:
+    image: elasticsearch:9.4.2
+    container_name: daangn-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    command: >
+      bash -c "elasticsearch-plugin install analysis-nori --batch && docker-entrypoint.sh"
+    networks:
+      - daangn-network
+
 networks:
   daangn-network:
     driver: bridge
 
 volumes:
   postgres_data:
+  es_data:

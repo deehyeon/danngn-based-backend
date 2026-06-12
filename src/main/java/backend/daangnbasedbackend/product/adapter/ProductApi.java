@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +19,6 @@ import java.util.List;
 @Tag(name="PRODUCT", description = "상품 API")
 @RequestMapping("/v1/products")
 public interface ProductApi {
-
     @Operation(summary = "특정 상품 조회")
     @GetMapping("/{productId}")
     ApiResponse<ProductRes> getProduct(@PathVariable("productId") Long productId);
@@ -28,12 +26,6 @@ public interface ProductApi {
     @Operation(summary = "상품 등록(게시)", description = "거래할 상품을 게시한다.")
     @PostMapping
     ApiResponse<?> registerProduct(@AuthenticationPrincipal AuthDetails authDetails, @RequestBody ProductCreateReq req);
-
-    @Operation(summary = "상품 목록 조회", description = "상품들의 목록을 시간순으로 조회한다.")
-    @GetMapping
-    ApiResponse<Page<ProductSummaryRes>> getProducts(
-            @ParameterObject @PageableDefault(size = 10, sort = "refreshAt", direction = Sort.Direction.DESC) Pageable pageable
-    );
 
     @Operation(summary = "상품 정보 수정", description = "등록된 상품의 정보를 수정한다.")
     @PatchMapping("/{productId}")
@@ -97,6 +89,16 @@ public interface ProductApi {
     @GetMapping("/feed")
     ApiResponse<ProductFeedRes> getProductFeed(
             @AuthenticationPrincipal AuthDetails authDetails,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) ProductState state
+    );
+
+    @Operation(summary = "상품 검색", description = "사용자의 동네에서 키워드로 상품 제목/설명을 검색한다. (커서 페이지네이션)")
+    @GetMapping("/search")
+    ApiResponse<ProductFeedRes> searchProducts(
+            @AuthenticationPrincipal AuthDetails authDetails,
+            @RequestParam String keyword,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) ProductState state

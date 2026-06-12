@@ -41,11 +41,6 @@ public class ProductController implements ProductApi {
     }
 
     @Override
-    public ApiResponse<Page<ProductSummaryRes>> getProducts(Pageable pageable) {
-        return ApiResponse.success(productFinder.findProducts(pageable));
-    }
-
-    @Override
     public ApiResponse<?> updateProduct(AuthDetails authDetails, Long productId, ProductUpdateReq req) {
         productWriter.update(authDetails.getMemberId(), productId, req);
         return ApiResponse.success();
@@ -113,6 +108,11 @@ public class ProductController implements ProductApi {
 
     @Override
     public ApiResponse<ProductFeedRes> getProductFeed(AuthDetails authDetails, String cursor, int size, ProductState state) {
-        return ApiResponse.success(productFinder.findFeed(authDetails.getMemberId(), cursor, size, state));
+        return ApiResponse.success(productFinder.findProductFeed(authDetails.getMemberId(), cursor, size, state));
+    }
+
+    @Override
+    public ApiResponse<ProductFeedRes> searchProducts(AuthDetails authDetails, String keyword, String cursor, int size, ProductState state) {
+        return ApiResponse.success(productFinder.search(authDetails.getMemberId(), keyword, cursor, size, state));
     }
 }

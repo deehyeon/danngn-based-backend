@@ -35,7 +35,6 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
-
     // DB
     implementation 'org.springframework.boot:spring-boot-starter-session-data-redis'
     runtimeOnly 'org.postgresql:postgresql'
@@ -44,6 +43,9 @@ dependencies {
     implementation 'net.javacrumbs.shedlock:shedlock-spring:6.9.1'
     implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:6.9.1'
     implementation 'org.redisson:redisson:3.24.3'
+
+    // elastic search
+    implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
 
     // TEST
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
