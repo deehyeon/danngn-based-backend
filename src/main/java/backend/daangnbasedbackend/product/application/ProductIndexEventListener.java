@@ -5,6 +5,7 @@ import backend.daangnbasedbackend.product.application.required.ProductSearchRepo
 import backend.daangnbasedbackend.product.domain.ProductDocument;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -14,12 +15,24 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Component
 @RequiredArgsConstructor
 public class ProductIndexEventListener {
+
     private final ProductRepository productRepository;
     private final ProductSearchRepository productSearchRepository;
+    private final RetryTemplate esRetryTemplate;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(ProductIndexEvent event) {
+        esRetryTemplate.execute(
+            ctx -> { syncToEs(event); return null; },
+            ctx -> {
+                log.error("ES 인덱스 동기화 최종 실패: productId={}, action={}", event.productId(), event.action(), ctx.getLastThrowable());
+                return null;
+            }
+        );
+    }
+
+    private void syncToEs(ProductIndexEvent event) {
         switch (event.action()) {
             case DELETE -> {
                 productSearchRepository.deleteById(event.productId());

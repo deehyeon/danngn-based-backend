@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.retry.policy.SimpleRetryPolicy;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -32,7 +34,9 @@ class ProductIndexEventListenerTest {
 
     @BeforeEach
     void setUp() {
-        listener = new ProductIndexEventListener(productRepository, productSearchRepository);
+        RetryTemplate retryTemplate = new RetryTemplate();
+        retryTemplate.setRetryPolicy(new SimpleRetryPolicy(1));
+        listener = new ProductIndexEventListener(productRepository, productSearchRepository, retryTemplate);
     }
 
     private Product activeProduct(Long id) {
