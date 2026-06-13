@@ -10,27 +10,18 @@ import backend.daangnbasedbackend.product.application.dto.ProductSummaryRes;
 import backend.daangnbasedbackend.product.application.provided.ProductFinder;
 import backend.daangnbasedbackend.product.application.required.FavoriteProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
+import backend.daangnbasedbackend.product.application.required.ProductSearchPort;
 import backend.daangnbasedbackend.product.domain.Product;
-import backend.daangnbasedbackend.product.domain.ProductDocument;
 import backend.daangnbasedbackend.product.domain.ProductState;
 import backend.daangnbasedbackend.product.exception.ProductErrorType;
 import backend.daangnbasedbackend.product.exception.ProductException;
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
-import co.elastic.clients.json.JsonData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.SearchHit;
-import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,7 +34,7 @@ public class ProductFinderService implements ProductFinder {
     private final ProductRepository productRepository;
     private final FavoriteProductRepository favoriteProductRepository;
     private final MemberFinder memberFinder;
-    private final ElasticsearchOperations elasticsearchOperations;
+    private final ProductSearchPort productSearchPort;
 
     @Override
     public ProductRes findById(Long productId) {
@@ -85,17 +76,8 @@ public class ProductFinderService implements ProductFinder {
     @Override
     public ProductFeedRes search(Long memberId, String keyword, String cursor, int size, ProductState state) {
         String location = resolveMemberLocation(memberId);
-        List<Query> filters = buildSearchFilters(location, state, cursor);
-        NativeQuery query = buildSearchQuery(keyword, filters, size + 1);
-
-        List<Long> productIds = elasticsearchOperations.search(query, ProductDocument.class)
-            .getSearchHits().stream()
-            .map(SearchHit::getContent)
-            .map(ProductDocument::getProductId)
-            .toList();
-
+        List<Long> productIds = productSearchPort.searchProductIds(keyword, location, state, cursor, size + 1);
         if (productIds.isEmpty()) return new ProductFeedRes(List.of(), null, false);
-
         return buildFeedResponse(fetchProductsInEsOrder(productIds), size);
     }
 
@@ -118,42 +100,6 @@ public class ProductFinderService implements ProductFinder {
             ? new ProductCursor(content.get(content.size() - 1).getRefreshAt(), content.get(content.size() - 1).getId()).encode()
             : null;
         return new ProductFeedRes(content.stream().map(ProductSummaryRes::from).toList(), nextCursor, hasNext);
-    }
-
-    private List<Query> buildSearchFilters(String location, ProductState state, String cursor) {
-        List<Query> filters = new ArrayList<>();
-        filters.add(QueryBuilders.term(t -> t.field("location").value(location)));
-        if (state != null) {
-            filters.add(QueryBuilders.term(t -> t.field("state").value(state.name())));
-        }
-        if (cursor != null) {
-            filters.add(buildCursorFilter(ProductCursor.decode(cursor)));
-        }
-        return filters;
-    }
-
-    private Query buildCursorFilter(ProductCursor cursor) {
-        long cursorMillis = cursor.refreshedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        long cursorId = cursor.id();
-        return QueryBuilders.bool(b -> b
-            .should(QueryBuilders.range(r -> r.untyped(u -> u.field("refreshedAt").lt(JsonData.of(cursorMillis)))))
-            .should(QueryBuilders.bool(inner -> inner
-                .must(QueryBuilders.range(ir -> ir.untyped(u -> u.field("refreshedAt").gte(JsonData.of(cursorMillis)).lte(JsonData.of(cursorMillis)))))
-                .must(QueryBuilders.range(ir -> ir.untyped(u -> u.field("productId").lt(JsonData.of(cursorId)))))
-            ))
-            .minimumShouldMatch("1")
-        );
-    }
-
-    private NativeQuery buildSearchQuery(String keyword, List<Query> filters, int fetchSize) {
-        return NativeQuery.builder()
-            .withQuery(q -> q.bool(b -> b
-                .must(QueryBuilders.multiMatch(m -> m.query(keyword).fields("title", "description")))
-                .filter(filters)
-            ))
-            .withSort(Sort.by(Sort.Order.desc("refreshedAt"), Sort.Order.desc("productId")))
-            .withPageable(PageRequest.ofSize(fetchSize))
-            .build();
     }
 
     private List<Product> fetchProductsInEsOrder(List<Long> productIds) {

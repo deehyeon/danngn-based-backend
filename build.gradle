@@ -46,6 +46,7 @@ dependencies {
 
     // elastic search
     implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+    implementation 'org.springframework.retry:spring-retry:2.0.12'
 
     // TEST
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -96,6 +97,7 @@ jacocoTestReport {
                     '**/adapter/security/**',   // JwtAuthenticationFilter, JwtTokenProvider
                     '**/adapter/RedisMemoryMap*',
                     '**/adapter/RedisFavoriteCacheRepository*',
+                    '**/adapter/ElasticsearchProductSearchAdapter*',
                     '**.security.**',
                     '**.webapi.**',
             ])
@@ -135,6 +137,7 @@ jacocoTestCoverageVerification {
                     '**.KakaoOAuthClient*',
                     '**.adapter.RedisMemoryMap*',
                     '**.adapter.RedisFavoriteCacheRepository*',
+                    '**.adapter.ElasticsearchProductSearchAdapter*',
                     '**.security.**',
                     '**.webapi.**',
             ]

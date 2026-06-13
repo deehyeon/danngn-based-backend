@@ -11,9 +11,9 @@ import backend.daangnbasedbackend.product.application.dto.ProductRes;
 import backend.daangnbasedbackend.product.application.dto.ProductSummaryRes;
 import backend.daangnbasedbackend.product.application.required.FavoriteProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
+import backend.daangnbasedbackend.product.application.required.ProductSearchPort;
 import backend.daangnbasedbackend.product.domain.Product;
 import backend.daangnbasedbackend.product.domain.ProductCategory;
-import backend.daangnbasedbackend.product.domain.ProductDocument;
 import backend.daangnbasedbackend.product.domain.ProductState;
 import backend.daangnbasedbackend.product.exception.ProductErrorType;
 import backend.daangnbasedbackend.product.exception.ProductException;
@@ -26,10 +26,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.SearchHit;
-import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -39,10 +35,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,13 +48,13 @@ class ProductFinderServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private FavoriteProductRepository favoriteProductRepository;
     @Mock private MemberFinder memberFinder;
-    @Mock private ElasticsearchOperations elasticsearchOperations;
+    @Mock private ProductSearchPort productSearchPort;
 
     private ProductFinderService productFinderService;
 
     @BeforeEach
     void setUp() {
-        productFinderService = new ProductFinderService(productRepository, favoriteProductRepository, memberFinder, elasticsearchOperations);
+        productFinderService = new ProductFinderService(productRepository, favoriteProductRepository, memberFinder, productSearchPort);
     }
 
     private MemberRes memberWithLocation(String location) {
@@ -68,24 +65,6 @@ class ProductFinderServiceTest {
         Product p = Product.create(1L, ProductCategory.create("디지털기기"), "아이폰", "설명", BigDecimal.valueOf(500000), "서울", List.of());
         ReflectionTestUtils.setField(p, "id", id);
         return p;
-    }
-
-    private ProductDocument productDoc(Long id) {
-        return ProductDocument.from(product(id));
-    }
-
-    @SuppressWarnings("unchecked")
-    private SearchHits<ProductDocument> mockSearchHits(List<ProductDocument> docs) {
-        List<SearchHit<ProductDocument>> hits = docs.stream()
-            .map(doc -> {
-                SearchHit<ProductDocument> hit = mock(SearchHit.class);
-                when(hit.getContent()).thenReturn(doc);
-                return hit;
-            })
-            .toList();
-        SearchHits<ProductDocument> searchHits = mock(SearchHits.class);
-        when(searchHits.getSearchHits()).thenReturn(hits);
-        return searchHits;
     }
 
     @Test
@@ -286,8 +265,8 @@ class ProductFinderServiceTest {
     void search_returnsMatchingProducts() {
         // given
         when(memberFinder.findById(1L)).thenReturn(memberWithLocation("서울"));
-        SearchHits<ProductDocument> hits = mockSearchHits(List.of(productDoc(1L), productDoc(2L)));
-        when(elasticsearchOperations.search(any(Query.class), eq(ProductDocument.class))).thenReturn(hits);
+        when(productSearchPort.searchProductIds(eq("아이폰"), eq("서울"), isNull(), isNull(), eq(21)))
+            .thenReturn(List.of(1L, 2L));
         when(productRepository.findAllByIdInAndIsDeletedFalse(anyList())).thenReturn(List.of(product(1L), product(2L)));
 
         // when
@@ -304,8 +283,8 @@ class ProductFinderServiceTest {
     void search_hasNextPage_returnsNextCursor() {
         // given
         when(memberFinder.findById(1L)).thenReturn(memberWithLocation("서울"));
-        SearchHits<ProductDocument> hits = mockSearchHits(List.of(productDoc(1L), productDoc(2L), productDoc(3L)));
-        when(elasticsearchOperations.search(any(Query.class), eq(ProductDocument.class))).thenReturn(hits);
+        when(productSearchPort.searchProductIds(anyString(), anyString(), isNull(), isNull(), eq(3)))
+            .thenReturn(List.of(1L, 2L, 3L));
         when(productRepository.findAllByIdInAndIsDeletedFalse(anyList()))
             .thenReturn(List.of(product(1L), product(2L), product(3L)));
 
@@ -323,8 +302,8 @@ class ProductFinderServiceTest {
     void search_withStateFilter_returnsFilteredProducts() {
         // given
         when(memberFinder.findById(1L)).thenReturn(memberWithLocation("서울"));
-        SearchHits<ProductDocument> hits = mockSearchHits(List.of(productDoc(1L)));
-        when(elasticsearchOperations.search(any(Query.class), eq(ProductDocument.class))).thenReturn(hits);
+        when(productSearchPort.searchProductIds(anyString(), anyString(), eq(ProductState.ON_SALE), isNull(), eq(11)))
+            .thenReturn(List.of(1L));
         when(productRepository.findAllByIdInAndIsDeletedFalse(anyList())).thenReturn(List.of(product(1L)));
 
         // when
@@ -342,8 +321,8 @@ class ProductFinderServiceTest {
         when(memberFinder.findById(1L)).thenReturn(memberWithLocation("서울"));
         LocalDateTime cursorTime = LocalDateTime.of(2024, 1, 1, 12, 0, 0);
         String cursor = new ProductCursor(cursorTime, 5L).encode();
-        SearchHits<ProductDocument> hits = mockSearchHits(List.of(productDoc(3L)));
-        when(elasticsearchOperations.search(any(Query.class), eq(ProductDocument.class))).thenReturn(hits);
+        when(productSearchPort.searchProductIds(anyString(), anyString(), isNull(), eq(cursor), eq(11)))
+            .thenReturn(List.of(3L));
         when(productRepository.findAllByIdInAndIsDeletedFalse(anyList())).thenReturn(List.of(product(3L)));
 
         // when
