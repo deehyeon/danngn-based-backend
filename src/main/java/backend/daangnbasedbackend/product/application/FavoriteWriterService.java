@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+// @Transactional을 클래스/메서드 레벨에 붙이지 말 것.
+// toggleFavorite은 @DistributedLock → AopForTransaction(REQUIRES_NEW) 구조로 트랜잭션을 관리한다.
+// 호출자에 부모 트랜잭션이 존재하면 REQUIRES_NEW가 추가 커넥션을 요구해 커넥션 풀 고갈 위험이 생기고,
+// REQUIRED로 부모 트랜잭션에 합류할 경우 락 해제 전에 커밋이 보장되지 않아 레이스 컨디션이 발생한다.
 @Service
 @RequiredArgsConstructor
 public class FavoriteWriterService implements FavoriteWriter {
