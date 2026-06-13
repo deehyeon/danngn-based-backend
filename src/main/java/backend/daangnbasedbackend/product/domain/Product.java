@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,7 +77,7 @@ public class Product extends AbstractEntity {
         this.price = price;
         this.location = location;
         this.state = ProductState.ON_SALE;
-        this.refreshAt = LocalDateTime.now();
+        this.refreshAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public static Product create(Long sellerId, ProductCategory category, String title, String description, BigDecimal price, String location, List<String> imageUrls) {
@@ -118,7 +119,7 @@ public class Product extends AbstractEntity {
         this.price = price;
         this.location = location;
         this.state = ProductState.ON_SALE;
-        this.refreshAt = LocalDateTime.now();
+        this.refreshAt = LocalDateTime.now(ZoneOffset.UTC);
         this.images.clear();
         buildImages(imageUrls);
     }
@@ -135,10 +136,10 @@ public class Product extends AbstractEntity {
         if (this.refreshCount >= MAX_REFRESH_COUNT) {
             throw new ProductException(ProductErrorType.REFRESH_LIMIT_EXCEEDED);
         }
-        if (this.refreshCount > 0 && this.refreshAt.isAfter(LocalDateTime.now().minusHours(REFRESH_COOLDOWN_HOURS))) {
+        if (this.refreshCount > 0 && this.refreshAt.isAfter(LocalDateTime.now(ZoneOffset.UTC).minusHours(REFRESH_COOLDOWN_HOURS))) {
             throw new ProductException(ProductErrorType.REFRESH_COOLDOWN_NOT_ELAPSED);
         }
-        this.refreshAt = LocalDateTime.now();
+        this.refreshAt = LocalDateTime.now(ZoneOffset.UTC);
         this.refreshCount++;
     }
 
