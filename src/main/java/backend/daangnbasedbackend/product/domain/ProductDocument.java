@@ -7,7 +7,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.*;
 
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 @Document(indexName = "products")
 @Setting(settingPath = "elasticsearch/product-setting.json")
@@ -44,7 +44,7 @@ public class ProductDocument {
         doc.description = product.getDescription();
         doc.location = product.getLocation();
         doc.state = product.getState().name();
-        doc.refreshedAt = product.getRefreshAt().atZone(ZoneId.systemDefault()).toInstant();
+        doc.refreshedAt = product.getRefreshAt().toInstant(ZoneOffset.UTC);
         return doc;
     }
 }
