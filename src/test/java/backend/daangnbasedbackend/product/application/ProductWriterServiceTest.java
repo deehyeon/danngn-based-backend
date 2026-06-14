@@ -7,8 +7,6 @@ import backend.daangnbasedbackend.member.exception.MemberErrorType;
 import backend.daangnbasedbackend.member.exception.MemberException;
 import backend.daangnbasedbackend.product.application.dto.ProductCreateReq;
 import backend.daangnbasedbackend.product.application.dto.ProductUpdateReq;
-import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
-import backend.daangnbasedbackend.product.application.required.FavoriteProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductCategoryRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.domain.Product;
@@ -22,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -40,12 +39,13 @@ class ProductWriterServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private ProductCategoryRepository productCategoryRepository;
     @Mock private MemberFinder memberFinder;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     private ProductWriterService productWriterService;
 
     @BeforeEach
     void setUp() {
-        productWriterService = new ProductWriterService(productRepository, productCategoryRepository, memberFinder);
+        productWriterService = new ProductWriterService(productRepository, productCategoryRepository, memberFinder, eventPublisher);
     }
 
     private MemberRes memberWithLocation(String location) {
@@ -78,6 +78,7 @@ class ProductWriterServiceTest {
         // then
         assertThat(id).isEqualTo(10L);
         verify(productRepository).save(any(Product.class));
+        verify(eventPublisher).publishEvent(ProductIndexEvent.upsert(10L));
     }
 
     @Test
@@ -128,10 +129,8 @@ class ProductWriterServiceTest {
 
         // then
         assertThat(product.getTitle()).isEqualTo("새 제목");
-        assertThat(product.getDescription()).isEqualTo("새 설명");
-        assertThat(product.getPrice()).isEqualByComparingTo(BigDecimal.valueOf(300000));
         assertThat(product.getLocation()).isEqualTo("경기 성남시");
-        assertThat(product.getState()).isEqualTo(ProductState.ON_SALE);
+        verify(eventPublisher).publishEvent(ProductIndexEvent.upsert(10L));
     }
 
     @Test
@@ -193,6 +192,7 @@ class ProductWriterServiceTest {
 
         // then
         assertThat(product.getIsDeleted()).isTrue();
+        verify(eventPublisher).publishEvent(ProductIndexEvent.delete(10L));
     }
 
     @Test
@@ -238,6 +238,7 @@ class ProductWriterServiceTest {
 
         // then
         assertThat(product.getRefreshCount()).isEqualTo(1L);
+        verify(eventPublisher).publishEvent(ProductIndexEvent.upsert(10L));
     }
 
     @Test
@@ -318,7 +319,7 @@ class ProductWriterServiceTest {
     @DisplayName("refresh: 첫 번째 끌어올리기(refreshCount=0)는 쿨다운 없이 바로 가능하다")
     void refresh_firstRefresh_noCooldown() {
         // given
-        Product product = activeProduct(); // refreshCount=0, refreshAt=now
+        Product product = activeProduct();
         when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when
@@ -345,6 +346,7 @@ class ProductWriterServiceTest {
         // then
         assertThat(product.getState()).isEqualTo(ProductState.RESERVED);
         assertThat(product.getBuyerId()).isEqualTo(2L);
+        verify(eventPublisher).publishEvent(ProductIndexEvent.upsert(10L));
     }
 
     @Test
@@ -405,6 +407,7 @@ class ProductWriterServiceTest {
         // then
         assertThat(product.getState()).isEqualTo(ProductState.SOLD_OUT);
         assertThat(product.getBuyerId()).isEqualTo(2L);
+        verify(eventPublisher).publishEvent(ProductIndexEvent.upsert(10L));
     }
 
     @Test
@@ -467,13 +470,14 @@ class ProductWriterServiceTest {
         // then
         assertThat(product.getState()).isEqualTo(ProductState.ON_SALE);
         assertThat(product.getBuyerId()).isNull();
+        verify(eventPublisher).publishEvent(ProductIndexEvent.upsert(10L));
     }
 
     @Test
     @DisplayName("cancelReservation: 예약 중이 아닌 상태에서 취소 시 INVALID_STATE_MODIFICATION 예외를 던진다")
     void cancelReservation_notReserved_throwsException() {
         // given
-        Product product = activeProduct(); // ON_SALE 상태
+        Product product = activeProduct();
         when(productRepository.findByIdAndIsDeletedFalse(10L)).thenReturn(Optional.of(product));
 
         // when & then

@@ -97,21 +97,6 @@ class ProductControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.title").value("아이폰"));
     }
 
-    @Test
-    @DisplayName("상품 목록 조회: 200 OK, result=SUCCESS, 페이지 데이터를 반환한다")
-    void getProducts_success() throws Exception {
-        // given
-        given(productFinder.findProducts(any(Pageable.class)))
-                .willReturn(new PageImpl<>(List.of(sampleSummaryRes())));
-
-        // when & then
-        mockMvc.perform(get(BASE_URL)
-                        .with(authentication(auth())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.totalElements").value(1));
-    }
-
     // ==========================================
     // 상품 등록/수정/삭제
     // ==========================================

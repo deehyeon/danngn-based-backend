@@ -1,0 +1,10 @@
+{
+  "properties": {
+    "productId": { "type": "long" },
+    "title": { "type": "text", "analyzer": "nori_analyzer" },
+    "description": { "type": "text", "analyzer": "nori_analyzer" },
+    "location": { "type": "keyword" },
+    "state": { "type": "keyword" },
+    "refreshedAt": { "type": "date", "format": "epoch_millis" }
+  }
+}
