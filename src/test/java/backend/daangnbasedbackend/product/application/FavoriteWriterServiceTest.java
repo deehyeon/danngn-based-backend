@@ -1,7 +1,7 @@
 package backend.daangnbasedbackend.product.application;
 
 import backend.daangnbasedbackend.product.application.dto.ToggleFavoriteRes;
-import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
+import backend.daangnbasedbackend.product.application.required.FavoriteCache;
 import backend.daangnbasedbackend.product.application.required.FavoriteProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.domain.FavoriteProduct;
@@ -33,7 +33,7 @@ class FavoriteWriterServiceTest {
 
     @Mock private ProductRepository productRepository;
     @Mock private FavoriteProductRepository favoriteProductRepository;
-    @Mock private FavoriteCacheRepository favoriteCacheRepository;
+    @Mock private FavoriteCache favoriteCache;
 
     private FavoriteWriterService favoriteWriterService;
 
@@ -43,7 +43,7 @@ class FavoriteWriterServiceTest {
     @BeforeEach
     void setUp() {
         favoriteWriterService = new FavoriteWriterService(
-                productRepository, favoriteProductRepository, favoriteCacheRepository);
+                productRepository, favoriteProductRepository, favoriteCache);
     }
 
     private Product activeProduct(long likeCount) {
@@ -73,7 +73,7 @@ class FavoriteWriterServiceTest {
         // given
         Product product = activeProduct(5L);
         when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
-        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
+        when(favoriteCache.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
         when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.empty());
         when(favoriteProductRepository.save(any(FavoriteProduct.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -84,7 +84,7 @@ class FavoriteWriterServiceTest {
         assertThat(result.favorited()).isTrue();
         assertThat(result.likeCount()).isEqualTo(6L);
         verify(favoriteProductRepository).save(any(FavoriteProduct.class));
-        verify(favoriteCacheRepository).recordLikeChange(PRODUCT_ID, 1L);
+        verify(favoriteCache).recordLikeChange(PRODUCT_ID, 1L);
     }
 
     // ==========================================
@@ -98,7 +98,7 @@ class FavoriteWriterServiceTest {
         Product product = activeProduct(5L);
         FavoriteProduct activeFav = activeFavorite();
         when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
-        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
+        when(favoriteCache.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
         when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.of(activeFav));
 
         // when
@@ -109,7 +109,7 @@ class FavoriteWriterServiceTest {
         assertThat(result.likeCount()).isEqualTo(4L);
         assertThat(activeFav.getIsDeleted()).isTrue();
         verify(favoriteProductRepository, never()).save(any());
-        verify(favoriteCacheRepository).recordLikeChange(PRODUCT_ID, -1L);
+        verify(favoriteCache).recordLikeChange(PRODUCT_ID, -1L);
     }
 
     // ==========================================
@@ -123,7 +123,7 @@ class FavoriteWriterServiceTest {
         Product product = activeProduct(5L);
         FavoriteProduct softDeletedFav = softDeletedFavorite();
         when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
-        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
+        when(favoriteCache.getPendingLikeChange(PRODUCT_ID)).thenReturn(0L);
         when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.of(softDeletedFav));
 
         // when
@@ -134,7 +134,7 @@ class FavoriteWriterServiceTest {
         assertThat(result.likeCount()).isEqualTo(6L);
         assertThat(softDeletedFav.getIsDeleted()).isFalse();
         verify(favoriteProductRepository, never()).save(any());
-        verify(favoriteCacheRepository).recordLikeChange(PRODUCT_ID, 1L);
+        verify(favoriteCache).recordLikeChange(PRODUCT_ID, 1L);
     }
 
     // ==========================================
@@ -147,7 +147,7 @@ class FavoriteWriterServiceTest {
         // given
         Product product = activeProduct(10L);
         when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
-        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(3L);
+        when(favoriteCache.getPendingLikeChange(PRODUCT_ID)).thenReturn(3L);
         when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.empty());
         when(favoriteProductRepository.save(any(FavoriteProduct.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -165,7 +165,7 @@ class FavoriteWriterServiceTest {
         Product product = activeProduct(0L);
         FavoriteProduct activeFav = activeFavorite();
         when(productRepository.findByIdAndIsDeletedFalse(PRODUCT_ID)).thenReturn(Optional.of(product));
-        when(favoriteCacheRepository.getPendingLikeChange(PRODUCT_ID)).thenReturn(-1L);
+        when(favoriteCache.getPendingLikeChange(PRODUCT_ID)).thenReturn(-1L);
         when(favoriteProductRepository.findByMemberIdAndProductId(MEMBER_ID, PRODUCT_ID)).thenReturn(Optional.of(activeFav));
 
         // when

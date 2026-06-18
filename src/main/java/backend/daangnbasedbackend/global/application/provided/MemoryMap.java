@@ -1,5 +1,6 @@
 package backend.daangnbasedbackend.global.application.provided;
 
+import java.util.List;
 import java.util.Set;
 
 public interface MemoryMap {
@@ -21,4 +22,10 @@ public interface MemoryMap {
      * key가 존재하지 않으면 빈 Set 반환.
      */
     Set<String> popAllFromSet(String key);
+
+    // Sorted Set 연산
+    void addToSortedSet(String key, String value, double score);
+    List<String> reverseRangeFromSortedSetByScore(String key, double maxScore, long count);
+    void removeFromSortedSet(String key, String value);
+    void trimSortedSet(String key, long maxSize);
 }

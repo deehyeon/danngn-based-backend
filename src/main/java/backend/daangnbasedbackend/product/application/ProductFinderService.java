@@ -8,6 +8,7 @@ import backend.daangnbasedbackend.product.application.dto.ProductFeedRes;
 import backend.daangnbasedbackend.product.application.dto.ProductRes;
 import backend.daangnbasedbackend.product.application.dto.ProductSummaryRes;
 import backend.daangnbasedbackend.product.application.provided.ProductFinder;
+import backend.daangnbasedbackend.product.application.required.ProductCache;
 import backend.daangnbasedbackend.product.application.required.FavoriteProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductSearchPort;
@@ -22,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +38,7 @@ public class ProductFinderService implements ProductFinder {
     private final FavoriteProductRepository favoriteProductRepository;
     private final MemberFinder memberFinder;
     private final ProductSearchPort productSearchPort;
+    private final ProductCache productCache;
 
     @Override
     public ProductRes findById(Long productId) {
@@ -69,8 +73,61 @@ public class ProductFinderService implements ProductFinder {
     @Override
     public ProductFeedRes findProductFeed(Long memberId, String cursor, int size, ProductState state) {
         String location = resolveMemberLocation(memberId);
-        List<Product> products = fetchFeedProducts(location, cursor, size + 1, state);
-        return buildFeedResponse(products, size);
+        ProductCursor parsedCursor = cursor != null ? ProductCursor.decode(cursor) : null;
+
+        List<Product> cachedContent = fetchFromCache(location, parsedCursor, size, state);
+        boolean cacheHasNext = cachedContent.size() > size;
+        if (cacheHasNext) {
+            return buildFeedResponse(cachedContent.subList(0, size), true);
+        }
+
+        int remainSize = size - cachedContent.size();
+        ProductCursor dbCursor = cachedContent.isEmpty()
+                ? parsedCursor
+                : new ProductCursor(cachedContent.getLast().getRefreshAt(), cachedContent.getLast().getId());
+        List<Product> dbResult = fetchFeedFromDb(location, dbCursor, remainSize + 1, state);
+        boolean hasNext = dbResult.size() > remainSize;
+        List<Product> dbContent = hasNext ? dbResult.subList(0, remainSize) : dbResult;
+
+        List<Product> combined = new ArrayList<>(cachedContent);
+        combined.addAll(dbContent);
+        return buildFeedResponse(combined, hasNext);
+    }
+
+    private List<Product> fetchFromCache(String location, ProductCursor parsedCursor, int size, ProductState state) {
+        double maxScore = parsedCursor == null
+                ? Double.MAX_VALUE
+                : (double) parsedCursor.refreshedAt().toInstant(ZoneOffset.UTC).toEpochMilli();
+
+        List<Long> cachedIds = productCache.getTopProductIds(location, maxScore, size + 1);
+        if (cachedIds.isEmpty()) return List.of();
+
+        Map<Long, Product> productMap = productRepository.findAllByIdInAndIsDeletedFalse(cachedIds)
+                .stream().collect(Collectors.toMap(Product::getId, p -> p));
+
+        return cachedIds.stream()
+                .map(productMap::get)
+                .filter(Objects::nonNull)
+                .filter(p -> state == null || p.getState() == state)
+                .filter(p -> parsedCursor == null || isAfterCursor(p, parsedCursor))
+                .limit(size + 1L)
+                .toList();
+    }
+
+    private boolean isAfterCursor(Product p, ProductCursor cursor) {
+        int cmp = p.getRefreshAt().compareTo(cursor.refreshedAt());
+        return cmp < 0 || (cmp == 0 && p.getId() < cursor.id());
+    }
+
+    private List<Product> fetchFeedFromDb(String location, ProductCursor cursor, int fetchSize, ProductState state) {
+        if (cursor == null) {
+            return state == null
+                    ? productRepository.findFeed(location, PageRequest.ofSize(fetchSize))
+                    : productRepository.findFeedByState(location, state, PageRequest.ofSize(fetchSize));
+        }
+        return state == null
+                ? productRepository.findFeedAfterCursor(location, cursor.refreshedAt(), cursor.id(), PageRequest.ofSize(fetchSize))
+                : productRepository.findFeedByStateAfterCursor(location, state, cursor.refreshedAt(), cursor.id(), PageRequest.ofSize(fetchSize));
     }
 
     @Override
@@ -78,27 +135,16 @@ public class ProductFinderService implements ProductFinder {
         String location = resolveMemberLocation(memberId);
         List<Long> productIds = productSearchPort.searchProductIds(keyword, location, state, cursor, size + 1);
         if (productIds.isEmpty()) return new ProductFeedRes(List.of(), null, false);
-        return buildFeedResponse(fetchProductsInEsOrder(productIds), size);
-    }
-
-    private List<Product> fetchFeedProducts(String location, String cursor, int fetchSize, ProductState state) {
-        if (cursor == null) {
-            return state == null
-                ? productRepository.findFeed(location, PageRequest.ofSize(fetchSize))
-                : productRepository.findFeedByState(location, state, PageRequest.ofSize(fetchSize));
-        }
-        ProductCursor productCursor = ProductCursor.decode(cursor);
-        return state == null
-            ? productRepository.findFeedAfterCursor(location, productCursor.refreshedAt(), productCursor.id(), PageRequest.ofSize(fetchSize))
-            : productRepository.findFeedByStateAfterCursor(location, state, productCursor.refreshedAt(), productCursor.id(), PageRequest.ofSize(fetchSize));
-    }
-
-    private ProductFeedRes buildFeedResponse(List<Product> products, int size) {
+        List<Product> products = fetchProductsInEsOrder(productIds);
         boolean hasNext = products.size() > size;
         List<Product> content = hasNext ? products.subList(0, size) : products;
-        String nextCursor = hasNext
-            ? new ProductCursor(content.get(content.size() - 1).getRefreshAt(), content.get(content.size() - 1).getId()).encode()
-            : null;
+        return buildFeedResponse(content, hasNext);
+    }
+
+    private ProductFeedRes buildFeedResponse(List<Product> content, boolean hasNext) {
+        String nextCursor = hasNext && !content.isEmpty()
+                ? new ProductCursor(content.getLast().getRefreshAt(), content.getLast().getId()).encode()
+                : null;
         return new ProductFeedRes(content.stream().map(ProductSummaryRes::from).toList(), nextCursor, hasNext);
     }
 

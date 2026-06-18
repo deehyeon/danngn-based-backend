@@ -1,6 +1,6 @@
 package backend.daangnbasedbackend.product.application;
 
-import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
+import backend.daangnbasedbackend.product.application.required.FavoriteCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -13,13 +13,13 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class FavoriteSyncScheduler {
-    private final FavoriteCacheRepository favoriteCacheRepository;
+    private final FavoriteCache favoriteCache;
     private final ProductLikeCountSyncService likeCountSyncService;
 
     @Scheduled(fixedDelay = 60_000)
     @SchedulerLock(name = "FavoriteSyncScheduler", lockAtMostFor = "PT55S", lockAtLeastFor = "PT5S")
     public void syncLikeCounts() {
-        Map<Long, Long> deltas = favoriteCacheRepository.flushPendingLikeChanges();
+        Map<Long, Long> deltas = favoriteCache.flushPendingLikeChanges();
         if (deltas.isEmpty()) {
             return;
         }
