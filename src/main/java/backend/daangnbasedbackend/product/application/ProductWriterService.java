@@ -5,6 +5,8 @@ import backend.daangnbasedbackend.member.exception.MemberErrorType;
 import backend.daangnbasedbackend.member.exception.MemberException;
 import backend.daangnbasedbackend.product.application.dto.ProductCreateReq;
 import backend.daangnbasedbackend.product.application.dto.ProductUpdateReq;
+import backend.daangnbasedbackend.product.application.event.ProductCacheEvent;
+import backend.daangnbasedbackend.product.application.event.ProductIndexEvent;
 import backend.daangnbasedbackend.product.application.provided.ProductWriter;
 import backend.daangnbasedbackend.product.application.required.ProductCategoryRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
@@ -31,7 +33,7 @@ public class ProductWriterService implements ProductWriter {
 
     @Override
     public Long create(Long sellerId, ProductCreateReq req) {
-        String location = resolveMemberLocation(sellerId);
+        String location = getMemberLocation(sellerId);
         ProductCategory category = findCategoryById(req.categoryId());
         Product product = Product.create(
                 sellerId,
@@ -42,9 +44,10 @@ public class ProductWriterService implements ProductWriter {
                 location,
                 req.imageUrls() != null ? req.imageUrls() : List.of()
         );
-        Long savedId = productRepository.save(product).getId();
-        eventPublisher.publishEvent(ProductIndexEvent.upsert(savedId));
-        return savedId;
+        Product saved = productRepository.save(product);
+        eventPublisher.publishEvent(ProductCacheEvent.add(saved.getId(), saved.getLocation(), saved.getRefreshAt()));
+        eventPublisher.publishEvent(ProductIndexEvent.upsert(saved.getId()));
+        return saved.getId();
     }
 
     @Override
@@ -52,21 +55,21 @@ public class ProductWriterService implements ProductWriter {
         Product product = findActiveById(productId);
         validateOwner(product, sellerId);
 
-        if (req == null) {
-            product.refresh();
-        } else {
-            String location = resolveMemberLocation(sellerId);
-            ProductCategory category = findCategoryById(req.categoryId());
-            product.updateProduct(
-                    category,
-                    req.title(),
-                    req.description(),
-                    req.price(),
-                    location,
-                    req.imageUrls() != null ? req.imageUrls() : List.of()
-            );
+        String oldLocation = product.getLocation();
+        String newLocation = getMemberLocation(sellerId);
+        ProductCategory category = findCategoryById(req.categoryId());
+        product.updateProduct(
+                category,
+                req.title(),
+                req.description(),
+                req.price(),
+                newLocation,
+                req.imageUrls() != null ? req.imageUrls() : List.of()
+        );
+        if (!oldLocation.equals(newLocation)) {
+            eventPublisher.publishEvent(ProductCacheEvent.remove(product.getId(), oldLocation));
+            eventPublisher.publishEvent(ProductCacheEvent.add(product.getId(), newLocation, product.getRefreshAt()));
         }
-
         eventPublisher.publishEvent(ProductIndexEvent.upsert(productId));
     }
 
@@ -75,6 +78,7 @@ public class ProductWriterService implements ProductWriter {
         Product product = findActiveById(productId);
         validateOwner(product, sellerId);
         product.softDelete();
+        eventPublisher.publishEvent(ProductCacheEvent.remove(product.getId(), product.getLocation()));
         eventPublisher.publishEvent(ProductIndexEvent.delete(productId));
     }
 
@@ -83,6 +87,7 @@ public class ProductWriterService implements ProductWriter {
         Product product = findActiveById(productId);
         validateOwner(product, sellerId);
         product.refresh();
+        eventPublisher.publishEvent(ProductCacheEvent.add(product.getId(), product.getLocation(), product.getRefreshAt()));
         eventPublisher.publishEvent(ProductIndexEvent.upsert(productId));
     }
 
@@ -114,7 +119,7 @@ public class ProductWriterService implements ProductWriter {
         eventPublisher.publishEvent(ProductIndexEvent.upsert(productId));
     }
 
-    private String resolveMemberLocation(Long memberId) {
+    private String getMemberLocation(Long memberId) {
         String location = memberFinder.findById(memberId).location();
         if (location == null || location.isBlank()) {
             throw new MemberException(MemberErrorType.LOCATION_NOT_SET);
@@ -143,4 +148,5 @@ public class ProductWriterService implements ProductWriter {
             throw new ProductException(ProductErrorType.INVALID_TRADE_REQUEST);
         }
     }
+
 }

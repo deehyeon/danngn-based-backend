@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import org.springframework.data.redis.core.script.RedisScript;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -46,6 +47,27 @@ public class RedisMemoryMap implements MemoryMap {
     @Override
     public void addToSet(String key, String value) {
         redisTemplate.opsForSet().add(key, value);
+    }
+
+    @Override
+    public void addToSortedSet(String key, String value, double score) {
+        redisTemplate.opsForZSet().add(key, value, score);
+    }
+
+    @Override
+    public List<String> reverseRangeFromSortedSetByScore(String key, double maxScore, long count) {
+        Set<String> result = redisTemplate.opsForZSet().reverseRangeByScore(key, Double.NEGATIVE_INFINITY, maxScore, 0, count);
+        return result != null ? new ArrayList<>(result) : List.of();
+    }
+
+    @Override
+    public void removeFromSortedSet(String key, String value) {
+        redisTemplate.opsForZSet().remove(key, value);
+    }
+
+    @Override
+    public void trimSortedSet(String key, long maxSize) {
+        redisTemplate.opsForZSet().removeRange(key, 0, -(maxSize + 1));
     }
 
     @Override

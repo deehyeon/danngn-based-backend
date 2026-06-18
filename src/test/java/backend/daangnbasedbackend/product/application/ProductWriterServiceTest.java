@@ -7,6 +7,7 @@ import backend.daangnbasedbackend.member.exception.MemberErrorType;
 import backend.daangnbasedbackend.member.exception.MemberException;
 import backend.daangnbasedbackend.product.application.dto.ProductCreateReq;
 import backend.daangnbasedbackend.product.application.dto.ProductUpdateReq;
+import backend.daangnbasedbackend.product.application.event.ProductIndexEvent;
 import backend.daangnbasedbackend.product.application.required.ProductCategoryRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.domain.Product;

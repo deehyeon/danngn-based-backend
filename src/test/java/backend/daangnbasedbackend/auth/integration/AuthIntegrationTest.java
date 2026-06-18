@@ -5,7 +5,7 @@ import backend.daangnbasedbackend.auth.application.dto.OAuthProfile;
 import backend.daangnbasedbackend.auth.domain.OAuthProvider;
 import backend.daangnbasedbackend.global.application.provided.MemoryMap;
 import backend.daangnbasedbackend.member.application.required.MemberRepository;
-import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
+import backend.daangnbasedbackend.product.application.required.FavoriteCache;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +39,7 @@ class AuthIntegrationTest {
 
     @MockitoBean KakaoOAuthClient kakaoOAuthClient;
     @MockitoBean MemoryMap memoryMap;
-    @MockitoBean FavoriteCacheRepository favoriteCacheRepository;
+    @MockitoBean FavoriteCache favoriteCache;
 
     private static final String BASE_URL = "/v1/auth";
 

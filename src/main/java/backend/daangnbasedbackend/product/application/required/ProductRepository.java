@@ -50,7 +50,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.location = :location AND p.isDeleted = false AND p.state = :state AND (p.refreshAt < :cursorRefreshedAt OR (p.refreshAt = :cursorRefreshedAt AND p.id < :cursorId)) ORDER BY p.refreshAt DESC, p.id DESC")
     List<Product> findFeedByStateAfterCursor(@Param("location") String location, @Param("state") ProductState state, @Param("cursorRefreshedAt") LocalDateTime cursorRefreshedAt, @Param("cursorId") Long cursorId, Pageable pageable);
 
-    @EntityGraph(attributePaths = "category")
+    @EntityGraph(attributePaths = {"category", "images"})
     @Query("SELECT p FROM Product p WHERE p.id IN :ids AND p.isDeleted = false")
     List<Product> findAllByIdInAndIsDeletedFalse(@Param("ids") List<Long> ids);
 }

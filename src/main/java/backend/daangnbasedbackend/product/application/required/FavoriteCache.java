@@ -1,7 +1,6 @@
-package backend.daangnbasedbackend.product.adapter;
+package backend.daangnbasedbackend.product.application.required;
 
 import backend.daangnbasedbackend.global.application.provided.MemoryMap;
-import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -11,25 +10,22 @@ import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
-public class RedisFavoriteCacheRepository implements FavoriteCacheRepository {
+public class FavoriteCache {
     private final MemoryMap memoryMap;
 
-    private static final String PENDING_LIKE_COUNT_PREFIX  = "FAV:PENDING_LIKE_COUNT:";
-    private static final String PENDING_SYNC_PRODUCTS_KEY  = "FAV:PENDING_SYNC_PRODUCTS";
+    private static final String PENDING_LIKE_COUNT_PREFIX = "FAV:PENDING_LIKE_COUNT:";
+    private static final String PENDING_SYNC_PRODUCTS_KEY = "FAV:PENDING_SYNC_PRODUCTS";
 
-    @Override
     public void recordLikeChange(Long productId, long change) {
         memoryMap.increment(PENDING_LIKE_COUNT_PREFIX + productId, change);
         memoryMap.addToSet(PENDING_SYNC_PRODUCTS_KEY, productId.toString());
     }
 
-    @Override
     public long getPendingLikeChange(Long productId) {
         String value = memoryMap.getValue(PENDING_LIKE_COUNT_PREFIX + productId);
         return value == null ? 0L : Long.parseLong(value);
     }
 
-    @Override
     public Map<Long, Long> flushPendingLikeChanges() {
         Set<String> productIds = memoryMap.popAllFromSet(PENDING_SYNC_PRODUCTS_KEY);
         if (productIds.isEmpty()) {

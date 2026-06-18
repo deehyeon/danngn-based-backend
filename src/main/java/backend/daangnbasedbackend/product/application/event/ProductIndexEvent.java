@@ -1,4 +1,4 @@
-package backend.daangnbasedbackend.product.application;
+package backend.daangnbasedbackend.product.application.event;
 
 public record ProductIndexEvent(Long productId, Action action) {
     public enum Action { UPSERT, DELETE }

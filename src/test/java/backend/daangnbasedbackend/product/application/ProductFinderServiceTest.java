@@ -9,6 +9,7 @@ import backend.daangnbasedbackend.product.application.dto.ProductCursor;
 import backend.daangnbasedbackend.product.application.dto.ProductFeedRes;
 import backend.daangnbasedbackend.product.application.dto.ProductRes;
 import backend.daangnbasedbackend.product.application.dto.ProductSummaryRes;
+import backend.daangnbasedbackend.product.application.required.ProductCache;
 import backend.daangnbasedbackend.product.application.required.FavoriteProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductSearchPort;
@@ -49,12 +50,13 @@ class ProductFinderServiceTest {
     @Mock private FavoriteProductRepository favoriteProductRepository;
     @Mock private MemberFinder memberFinder;
     @Mock private ProductSearchPort productSearchPort;
+    @Mock private ProductCache productCache;
 
     private ProductFinderService productFinderService;
 
     @BeforeEach
     void setUp() {
-        productFinderService = new ProductFinderService(productRepository, favoriteProductRepository, memberFinder, productSearchPort);
+        productFinderService = new ProductFinderService(productRepository, favoriteProductRepository, memberFinder, productSearchPort, productCache);
     }
 
     private MemberRes memberWithLocation(String location) {

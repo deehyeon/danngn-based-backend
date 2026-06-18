@@ -3,7 +3,7 @@ package backend.daangnbasedbackend.product.adapter;
 import backend.daangnbasedbackend.global.application.provided.MemoryMap;
 import backend.daangnbasedbackend.global.application.security.AuthDetails;
 import backend.daangnbasedbackend.product.application.provided.FavoriteWriter;
-import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
+import backend.daangnbasedbackend.product.application.required.FavoriteCache;
 import backend.daangnbasedbackend.product.application.dto.ProductCategoryRes;
 import backend.daangnbasedbackend.product.application.dto.ProductCreateReq;
 import backend.daangnbasedbackend.product.application.dto.ProductRes;
@@ -56,7 +56,7 @@ class ProductControllerIntegrationTest {
     @MockitoBean ProductFinder productFinder;
     @MockitoBean ProductCategoryFinder productCategoryFinder;
     @MockitoBean MemoryMap memoryMap;
-    @MockitoBean FavoriteCacheRepository favoriteCacheRepository;
+    @MockitoBean FavoriteCache favoriteCache;
 
     private static final Long MEMBER_ID = 1L;
     private static final String BASE_URL = "/v1/products";

@@ -86,7 +86,7 @@ public interface ProductApi {
     ApiResponse<List<ProductCategoryRes>> getCategories();
 
     @Operation(summary = "동네 상품 피드 조회", description = "사용자의 동네 기반 상품 목록을 커서 페이지네이션으로 조회한다. refreshedAt DESC, id DESC 정렬.")
-    @GetMapping("/feed")
+    @GetMapping
     ApiResponse<ProductFeedRes> getProductFeed(
             @AuthenticationPrincipal AuthDetails authDetails,
             @RequestParam(required = false) String cursor,

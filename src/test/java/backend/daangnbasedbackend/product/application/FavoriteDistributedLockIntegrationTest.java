@@ -3,7 +3,7 @@ package backend.daangnbasedbackend.product.application;
 import backend.daangnbasedbackend.auth.application.KakaoOAuthClient;
 import backend.daangnbasedbackend.global.application.provided.MemoryMap;
 import backend.daangnbasedbackend.product.application.provided.FavoriteWriter;
-import backend.daangnbasedbackend.product.application.required.FavoriteCacheRepository;
+import backend.daangnbasedbackend.product.application.required.FavoriteCache;
 import backend.daangnbasedbackend.product.application.required.FavoriteProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductSearchRepository;
@@ -52,7 +52,7 @@ class FavoriteDistributedLockIntegrationTest {
     // 비즈니스 로직 의존성 모킹 (DB/캐시 불필요)
     @MockitoBean private ProductRepository productRepository;
     @MockitoBean private FavoriteProductRepository favoriteProductRepository;
-    @MockitoBean private FavoriteCacheRepository favoriteCacheRepository;
+    @MockitoBean private FavoriteCache favoriteCache;
 
     // 외부 인프라 모킹 (컨텍스트 로딩에만 필요)
     @MockitoBean private MemoryMap memoryMap;
@@ -82,7 +82,7 @@ class FavoriteDistributedLockIntegrationTest {
         when(favoriteProductRepository.findByMemberIdAndProductId(any(), eq(10L)))
                 .thenReturn(Optional.empty());
         when(favoriteProductRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(favoriteCacheRepository.getPendingLikeChange(10L)).thenReturn(0L);
+        when(favoriteCache.getPendingLikeChange(10L)).thenReturn(0L);
 
         // when — 5개 스레드가 동시에 동일한 락 키(favorite:member:1:product:10)로 경쟁
         int threadCount = 5;

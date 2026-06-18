@@ -25,4 +25,19 @@ public class AsyncConfig {
         template.setBackOffPolicy(backOff);
         return template;
     }
+
+    @Bean
+    public RetryTemplate cacheRetryTemplate() {
+        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(3);
+
+        ExponentialBackOffPolicy backOff = new ExponentialBackOffPolicy();
+        backOff.setInitialInterval(500);
+        backOff.setMultiplier(2.0);
+        backOff.setMaxInterval(5000);
+
+        RetryTemplate template = new RetryTemplate();
+        template.setRetryPolicy(retryPolicy);
+        template.setBackOffPolicy(backOff);
+        return template;
+    }
 }

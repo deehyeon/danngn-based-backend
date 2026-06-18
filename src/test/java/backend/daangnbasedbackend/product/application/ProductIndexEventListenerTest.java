@@ -1,5 +1,7 @@
 package backend.daangnbasedbackend.product.application;
 
+import backend.daangnbasedbackend.product.application.event.ProductIndexEvent;
+import backend.daangnbasedbackend.product.application.event.ProductIndexEventListener;
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductSearchRepository;
 import backend.daangnbasedbackend.product.domain.Product;

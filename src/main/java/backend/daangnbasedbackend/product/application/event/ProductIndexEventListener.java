@@ -1,4 +1,4 @@
-package backend.daangnbasedbackend.product.application;
+package backend.daangnbasedbackend.product.application.event;
 
 import backend.daangnbasedbackend.product.application.required.ProductRepository;
 import backend.daangnbasedbackend.product.application.required.ProductSearchRepository;
