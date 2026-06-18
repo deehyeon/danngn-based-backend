@@ -2,10 +2,12 @@ package backend.daangnbasedbackend.product.application.required;
 
 import backend.daangnbasedbackend.global.application.provided.MemoryMap;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ProductCache {
@@ -25,9 +27,13 @@ public class ProductCache {
     }
 
     public List<Long> getTopProductIds(String location, double maxScore, int count) {
-        return memoryMap.reverseRangeFromSortedSetByScore(FEED_KEY_PREFIX + location, maxScore, count)
+        long start = System.nanoTime();
+        List<Long> ids = memoryMap.reverseRangeFromSortedSetByScore(FEED_KEY_PREFIX + location, maxScore, count)
                 .stream()
                 .map(Long::parseLong)
                 .toList();
+        log.info("피드 캐시 조회: location={}, 결과={}개, 소요={}μs",
+                location, ids.size(), (System.nanoTime() - start) / 1_000);
+        return ids;
     }
 }
